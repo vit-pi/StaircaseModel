@@ -8,3 +8,4 @@ This object can be used for postprocessing of the raw data produced with the Ada
 This object can be used for postprocessing of the raw data produced with the SnapshotTot function in the preprocessing (see Functions.h). The methods of this object are divided into data access and plotting functions. The data access functions can be used to transform the data from the preprocessing into Python objects and to transform these Python objects. The plotting functions are methods which aid the plotting into matplotlib axes.
 
 # References:
+[1] V. Piskovsky, N. Oliveira, unpublished at the moment
