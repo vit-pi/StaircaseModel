@@ -8,14 +8,10 @@ Preprocessing (tested on Linux with supercomputing cluster operated by SLURM):
 3) Compile the files, for example with a command: g++ -std=c++11 -O3 -march=skylake MMainFile.cpp Lattice.cpp Functions.cpp
 4) Create a submission bash file for SLURM, job arrays are often needed, for example Bash.sh:
 
-  #!/bin/bash
-  
-  #SBATCH --time=0-18:00:00
-  
-  #SBATCH -n 1
-  
-  #SBATCH --array=0-999
-  
+  #!/bin/bash\n
+  #SBATCH --time=0-18:00:00\n
+  #SBATCH -n 1\n
+  #SBATCH --array=0-999\n
   FileLocation/CompiledFile.out $SLURM_ARRAY_TASK_ID
 
 
