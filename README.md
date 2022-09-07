@@ -10,5 +10,7 @@ This project provides the code to explore a generalisation of the staircase mode
 
 # References:
 [1] R. Hermsen, J. Deris, and T. Hwa, Proceedings of the National Academy of Sciences 109, 10775 (2012), https://www.pnas.org/doi/10.1073/pnas.1117716109.
+
 [2] V. Piskovsky, N. Oliveira, unpublished at the moment
+
 [3] M. A. Gibson and J. Bruck, The journal of physical chemistry A 104, 1876 (2000), https://pubs.acs.org/doi/10.1021/jp993732q.
