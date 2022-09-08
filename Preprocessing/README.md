@@ -10,5 +10,5 @@ This contains the main object Lattice, and two supportive objects: IndexPriority
 ## Functions (Functions.h, Functions.cpp)
 This contains various functions for running appropriate simulation of the staircase. AdapImage and SnapshotTot are the most important functions. AdapImage saves the snapshots of the lattice at the times of adaptation in separate files and also saves these times in a special file. SnapshotTot saves the snapshots of the lattice at specified regular times.
 
-# References
+# References:
 [1] M. A. Gibson and J. Bruck, The journal of physical chemistry A 104, 1876 (2000), https://pubs.acs.org/doi/10.1021/jp993732q.
