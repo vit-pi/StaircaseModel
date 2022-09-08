@@ -1,5 +1,5 @@
 # Postprocessing
-This code can be used to transformed the raw data from preprocessing into meaningful images, see [1] for examples. There are three main objects to be used, each saved within a respective file. These objects are used in rest of the files, which act as the main files for plotting a specific image.
+This code can be used to transformed the raw data from preprocessing into meaningful images, see [1] for examples. There are three main objects to be used, each saved within a respective file. These objects are used in rest of the code files, which act as the main files for plotting a specific image. Notice that the output data from the Preprocessing part is saved in Build folder in the .zip form. Since Preprocessing is computationally costly, I have provided you with a large variety of already prepared data sets.
 ## Staircase (NStaircase.py)
 This object can be used for analytical and numerical understanding of the staircase model. It provides an alternative to the time-consuming stochastic simulations obtained in the Preprocessing. This object is vital for the correct functioning of few parts of the AdapDatabase and SnapDatabase objects. Use the LatProp and PopProp objects to specify the properties of the lattice and respective populations.
 ## AdapDatabase (NAdapDatabase.py)
