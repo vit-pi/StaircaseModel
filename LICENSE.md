@@ -1,5 +1,7 @@
 Copyright (C) 2022 Vit Piskovsky
 
+The author does not claim any responsibility for proper functioning of this project.
+
 # License
 
 Attribution-NonCommercial-ShareAlike 4.0 International
