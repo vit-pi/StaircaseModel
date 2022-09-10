@@ -8,12 +8,11 @@ This project provides the code to explore a generalisation of the staircase mode
 3) Compile the files, for example with a command: g++ -std=c++11 -O3 -march=skylake MMainFile.cpp Lattice.cpp Functions.cpp
 4) Create a submission bash file for SLURM, job arrays are often needed, for example Bash.sh:
 
->> #!/bin/bash  
->> #SBATCH --time=0-18:00:00  
->> #SBATCH -n 1  
->> #SBATCH --array=0-999  
->> FileLocation/CompiledFile.out $SLURM_ARRAY_TASK_ID
-
+    #!/bin/bash  
+    #SBATCH --time=0-18:00:00  
+    #SBATCH -n 1  
+    #SBATCH --array=0-999  
+    FileLocation/CompiledFile.out $SLURM_ARRAY_TASK_ID
 
 5) Put the submission file and compiled file into the prepared folder at FileLocation.
 6) Submit the job array to the supercomputer via SLURM, for example with a command: sbatch Bash.sh
