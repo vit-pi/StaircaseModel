@@ -36,6 +36,8 @@ import zipfile
 # 15=HGTA -> params=(move, hgt)
 # 16=HGTDeadlyA -> params=(move, hgt)
 # 17=DensSwitchA -> params=(death, switch_density, move_low_dens, move_high_dens)
+# 18=ResCostA -> params=(move, resist_cost)
+# 19=ResCostDeadlyA -> params=(move, resist_cost)
 
 class AdapDatabase:
 
@@ -54,7 +56,7 @@ class AdapDatabase:
             self.zip_files = []
             for zip_name in zip:
                 self.zip_files.append(zipfile.ZipFile(zip_name))
-        possible_experiment_types = [MotSwitchA(), ChemotaxA(), StandardA(), SpecialA(), ResistCostA(), StressBirthA(), StressDeathA(), SpecialB(), ResistCostB(), StressBirthDeathA(), StressDeathB(), SwitchA(), MotSwitchDeadlyA(), SwarmLagA(), SwarmDeadlyA(), HGTA(), HGTDeadlyA(), DensSwitchA()]
+        possible_experiment_types = [MotSwitchA(), ChemotaxA(), StandardA(), SpecialA(), ResistCostA(), StressBirthA(), StressDeathA(), SpecialB(), ResistCostB(), StressBirthDeathA(), StressDeathB(), SwitchA(), MotSwitchDeadlyA(), SwarmLagA(), SwarmDeadlyA(), HGTA(), HGTDeadlyA(), DensSwitchA(), ResCostA(), ResCostDeadlyA()]
         self.exp_type = []
         for type in types:
             self.exp_type.append(copy.deepcopy(possible_experiment_types[type]))
@@ -605,6 +607,65 @@ class AdapDatabase:
         if labels:
             ax.set_xlabel("motility $\\nu$ (1/h)", fontsize=12)
             ax.set_ylabel("chemotaxis p", fontsize=12)
+        return [min, max, im]
+
+    # make the heatmap plot of adaptation rat of given time_type, LD
+    # output: [min_adap_rate, max_adap_rate, im]
+    # input: switch_param (must match existing switch_param), time_type (0=T, 1=D), LD, fig, ax, min_max, colorbar (True/False), labels(True,False)
+    # note: assume all input data are of the same ResCostA or ResCostDeadlyA experiment
+    def res_cost_heatmap(self, LD, time_type, fig, ax, min_max, colorbar, labels):
+        # prepare x, y axes
+        move_num = len(self.exp_type[0].move_params)
+        cost_num = len(self.exp_type[0].cost_params)
+        move_axis = np.zeros((cost_num + 1, move_num + 1))
+        cost_axis = np.zeros((move_num + 1, cost_num + 1))
+        for c_index in range(cost_num+1):
+            move_axis[c_index] = np.asarray(self.exp_type[0].move_params+[31.6])
+        for m_index in range(move_num+1):
+            cost_axis[m_index] = np.asarray(self.exp_type[0].cost_params+[1])
+        cost_axis = np.transpose(cost_axis)
+        # prepare adaptation rates, and find minimal non-zero and maximal adaptation rate
+        adap_rates = np.zeros((move_num, cost_num))
+        for move_index in range(move_num):
+            for cost_index in range(cost_num):
+                move = self.exp_type[0].move_params[move_index]
+                cost = self.exp_type[0].cost_params[cost_index]
+                if self.adap_rate((move, cost)) is None:
+                    adap_rate = 0
+                else:
+                    adap_rate = self.adap_rate((move, cost))[0][time_type][LD-1]
+                    if np.isnan(adap_rate):
+                        adap_rate = 0
+                adap_rates[move_index][cost_index] = adap_rate
+        if min_max is None:
+            max = adap_rates.max()
+            if np.amin(adap_rates) == 0:
+                min = np.amin(np.array(adap_rates)[adap_rates != 0])
+                adap_rates = np.where(adap_rates == 0, min/2, adap_rates)
+            else:
+                min = np.amin(adap_rates)
+        else:
+            min = min_max[0]
+            max = min_max[1]
+            if np.amin(adap_rates) == 0:
+                adap_rates = np.where(adap_rates == 0, min/2, adap_rates)
+        # prepare colormap which has a red color for no adaptation rate
+        my_cmap = cm.get_cmap('viridis').copy()
+        my_cmap.set_under(color='red')
+        # make plot and add features
+        adap_rates = np.transpose(adap_rates)
+        im = ax.pcolormesh(move_axis, cost_axis, adap_rates, cmap=my_cmap, norm=LogNorm(vmin=min, vmax=max))
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.axvline(self.exp_type[0].DeathRate[0], color='black', linestyle="--")
+        ax.text(0.5 * self.exp_type[0].DeathRate[0], 1e-4, "$\\delta$", fontsize=12, color='black')
+        # set colorbar and labels
+        if colorbar:
+            cbar = fig.colorbar(im)
+            cbar.set_label("adaptation rate $a$ (1/h)", fontsize=12, rotation=90)
+        if labels:
+            ax.set_xlabel("motility $\\nu$ (1/h)", fontsize=12)
+            ax.set_ylabel("resistance cost $c$", fontsize=12)
         return [min, max, im]
 
     # make the heatmap plot of adaptation rat of given time_type, LD
@@ -2939,3 +3000,148 @@ class DensSwitchA:
         l_prop = sc.LatProp()
         l_prop.LD = LD
         return sc.Staircase(l_prop, p_prop)
+
+
+class ResCostA:
+    repeat = 10
+    adap_num = 7
+    # save lattice data
+    D = 1
+    CarryingCapacity = 1e5
+    GenBound = 8
+    GridBound = 8
+    PopulationNumber = 1
+    # save population data
+    InitCellsNum = [1e2]
+    InitCellsGen = [0]
+    InitCellsPos = [0]
+    BirthRate = [1]
+    StressBirthRate = [0]
+    cost_params = [3.16e-5, 1e-4, 3.16e-4, 1e-3, 3.16e-3, 1e-2, 3.16e-2, 1e-1, 3.16e-1]
+    cost_names = ["3E5", "1E4", "3E4", "1E3", "3E3", "1E2", "3E2", "1E1", "3E1"]
+    DeathRate = [1e-1]
+    StressDeathRate = [0]
+    MuteUp = [1e-7]
+    MuteDown = [1e-4]
+    StressMuteUp = [0]
+    StressMuteDown = [0]
+    move_params = [1e-5, 3.16e-5, 1e-4, 3.16e-4, 1e-3, 3.16e-3, 1e-2, 3.16e-2, 1e-1, 3.16e-1, 1, 3.16, 10]
+    move_names = ["1E5", "3E5", "1E4", "3E4", "1E3", "3E3", "1E2", "3E2", "1E1", "3E1", "1", "3", "10"]
+    Chemotax = [0.5]
+    StressDepChemotax = [False]
+    Chemokin = [0]
+    SwitchUp = [0]
+    SwitchDown = [0]
+    ConsiderSwarm = [False]
+    SwarmingDensity = [5e4]
+    SwarmingMove = [1]
+    ConsiderHGT = [False]
+    HGTRate = [0]
+
+    # Find name_ID from task_ID
+    def taskIDtoID(self, task_id):
+        mov_num = len(self.move_params)
+        cost_index = int(task_id / (self.repeat * mov_num))
+        move_index = int(task_id % mov_num)
+        id = "M" + self.move_names[move_index] + "_RC" + self.cost_names[cost_index]
+        return id
+
+    # Find taskID from params and run_index(=0,...,repeat)
+    def IDtoTaskID(self, params, run_index):
+        mov_num = len(self.move_params)
+        move_index = self.move_params.index(params[0])
+        cost_index = self.cost_params.index(params[1])
+        task_id = cost_index*self.repeat*mov_num+run_index*mov_num+move_index
+        return task_id
+
+    # Find params from task_ID
+    def taskIDtoParams(self, task_id):
+        mov_num = len(self.move_params)
+        cost_index = int(task_id / (self.repeat * mov_num))
+        move_index = int(task_id % mov_num)
+        params = (self.move_params[move_index], self.cost_params[cost_index])
+        run_index = int(int(task_id / mov_num) % self.repeat)
+        return [params, run_index]
+
+    # Create staircase object
+    def make_staircase(self, params, LD):
+        p_prop = [sc.PopProp()]
+        p_prop[0].Move = params[0]
+        p_prop[0].ResistCost = params[1]
+        p_prop[0].DeathRate = self.DeathRate[0]
+        l_prop = sc.LatProp()
+        l_prop.LD = LD
+        return sc.Staircase(l_prop, p_prop)
+
+
+class ResCostDeadlyA:
+    repeat = 10
+    adap_num = 7
+    # save lattice data
+    D = 1
+    CarryingCapacity = 1e5
+    GenBound = 8
+    GridBound = 8
+    PopulationNumber = 1
+    # save population data
+    InitCellsNum = [1e2]
+    InitCellsGen = [0]
+    InitCellsPos = [0]
+    BirthRate = [1]
+    StressBirthRate = [0]
+    cost_params = [3.16e-5, 1e-4, 3.16e-4, 1e-3, 3.16e-3, 1e-2, 3.16e-2, 1e-1, 3.16e-1]
+    cost_names = ["3E5", "1E4", "3E4", "1E3", "3E3", "1E2", "3E2", "1E1", "3E1"]
+    DeathRate = [3e-1]
+    StressDeathRate = [0]
+    MuteUp = [1e-7]
+    MuteDown = [1e-4]
+    StressMuteUp = [0]
+    StressMuteDown = [0]
+    move_params = [1e-5, 3.16e-5, 1e-4, 3.16e-4, 1e-3, 3.16e-3, 1e-2, 3.16e-2, 1e-1, 3.16e-1, 1, 3.16, 10]
+    move_names = ["1E5", "3E5", "1E4", "3E4", "1E3", "3E3", "1E2", "3E2", "1E1", "3E1", "1", "3", "10"]
+    Chemotax = [0.5]
+    StressDepChemotax = [False]
+    Chemokin = [0]
+    SwitchUp = [0]
+    SwitchDown = [0]
+    ConsiderSwarm = [False]
+    SwarmingDensity = [5e4]
+    SwarmingMove = [1]
+    ConsiderHGT = [False]
+    HGTRate = [0]
+
+    # Find name_ID from task_ID
+    def taskIDtoID(self, task_id):
+        mov_num = len(self.move_params)
+        cost_index = int(task_id / (self.repeat * mov_num))
+        move_index = int(task_id % mov_num)
+        id = "M" + self.move_names[move_index] + "_RC" + self.cost_names[cost_index]
+        return id
+
+    # Find taskID from params and run_index(=0,...,repeat)
+    def IDtoTaskID(self, params, run_index):
+        mov_num = len(self.move_params)
+        move_index = self.move_params.index(params[0])
+        cost_index = self.cost_params.index(params[1])
+        task_id = cost_index*self.repeat*mov_num+run_index*mov_num+move_index
+        return task_id
+
+    # Find params from task_ID
+    def taskIDtoParams(self, task_id):
+        mov_num = len(self.move_params)
+        cost_index = int(task_id / (self.repeat * mov_num))
+        move_index = int(task_id % mov_num)
+        params = (self.move_params[move_index], self.cost_params[cost_index])
+        run_index = int(int(task_id / mov_num) % self.repeat)
+        return [params, run_index]
+
+    # Create staircase object
+    def make_staircase(self, params, LD):
+        p_prop = [sc.PopProp()]
+        p_prop[0].Move = params[0]
+        p_prop[0].ResistCost = params[1]
+        p_prop[0].DeathRate = self.DeathRate[0]
+        l_prop = sc.LatProp()
+        l_prop.LD = LD
+        return sc.Staircase(l_prop, p_prop)
+    
