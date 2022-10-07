@@ -27,15 +27,15 @@ vector<PopProp> PProp(1);
 int main(void) {
 	// Choose parameters
 	double StopTime = 1E4;
-    double SimInterval = 1;
-    string FileSpecifier = "SwM3_SwD5Ep4_D1E1";
+    double SimInterval = 1E-1;
+    string FileSpecifier = "M10_D4E1_R3";
     LProp.GridBound = 8;
 	LProp.GenBound = 8;
-    PProp[0].Move = 1E-3;
-    PProp[0].DeathRate = 1e-1;
-	PProp[0].ConsiderSwarm = true;
-    PProp[0].SwarmDens = 5e4;
-	PProp[0].SwarmMove = 3.16;
+    PProp[0].Move = 10;
+    PProp[0].DeathRate = 4E-1;
+    PProp[0].InitCellsNum = 9E4;
+    PProp[0].InitCellsGen = 2;
+    PProp[0].InitCellsPos = 2;
 	// Run SnapshotTot simualtion
     SnapshotTot(LProp, PProp, SimInterval, StopTime, FileSpecifier);
 	return 0;
@@ -43,6 +43,15 @@ int main(void) {
 
 // List of used simulations (write ParameterValue_... for FileSpecifier, StopTime, SimInterval):
 // Notice values: 1e-3=1E3, 1e3=1Ep3 (p=positive, most exponents negative -> blank)
+
+// M10_D4E1_R0, 1E4, 1E-1 - deadly motility, R=0
+// M10_D4E1_R1, 1E4, 1E-1 - deadly motility, R=1
+// M10_D4E1_R2, 1E4, 1E-1 - deadly motility, R=2
+// M10_D4E1_R3, 1E4, 1E-1 - deadly motility, R=3
+
+// M1E2_RC2E1, 1E4, 1 - high resistance cost, low motility
+// M1_RC2E1, 1E4, 1 - high resistance cost, high motility
+
 // M1E2_HGT1E7, 2E3, 1 - low HGT, low motility
 // M1E2_HGT1E4, 2E3, 1 - high HGT, high motility
 // M1_HGT1E7, 2E3, 1 - low HGT, high motility
