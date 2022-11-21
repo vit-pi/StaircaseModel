@@ -11,7 +11,7 @@ This contains the main object Lattice, and two supportive objects: IndexPriority
 This contains various functions for running appropriate simulation of the staircase. AdapImage and SnapshotTot are the most important functions. AdapImage saves the snapshots of the lattice at the times of adaptation in separate files and also saves these times in a special file. SnapshotTot saves the snapshots of the lattice at specified regular times.
 
 # Demo
-This demo shows how to create Movie 1 in [2]. Figures are created similarly with AdapImage function.
+This demo shows how to do the preprocessing part of Movie 1 in [2]. Postprocessing part is covered in the respective folder. It has been chosen to make a demo for a movie as it is less time-consuming to run. Figures are created similarly with AdapImage function.
 
 ## Instructions:
 1) Prepare three folders: Snap_M1E2_V1, Snap_M1_V1, Code. (Can include more versions Snap_M1E2_V2, etc.)
@@ -21,15 +21,15 @@ This demo shows how to create Movie 1 in [2]. Figures are created similarly with
 5) Modify the motility in the MSnapshotTot.cpp file to simulate the high motility regime: PProp[0].Move = 1 and FileSpecifier = "M1";.
 6) Compile with a command: g++ -std=c++11 -O3 -march=skylake MSnapshotTot.cpp Lattice.cpp Functions.cpp.
 7) Save the compiled file as HighMot.out in the folder Code.
-4) In each folder Snap_M1E2_V1 (resp. Snap_M1_V1) create a file Bash.sh with the following content:
+8) In each folder Snap_M1E2_V1 (resp. Snap_M1_V1) create a file Bash.sh with the following content:
 
     #!/bin/bash  
     #SBATCH --time=0-18:00:00  
     #SBATCH -n 1  
     Code/LowMot.out (resp. Code/HighMot.out)
 
-6) Navigate to folders Snap_M1E2_V1 (resp. Snap_M1_V1) and submit your job to SLURM with: sbatch Bash.sh.
-7) Once both jobs are finished, zip Snap_M1E2_V1, Snap_M1_V1 into a single folder called SnapshotBuild_LowHighMot.zip and move this zipped folder to the folder of Build in Postprocessing.
+9) Navigate to folders Snap_M1E2_V1 (resp. Snap_M1_V1) and submit your job to SLURM with: sbatch Bash.sh.
+10) Once both jobs are finished, zip Snap_M1E2_V1, Snap_M1_V1 into a single folder called SnapshotBuild_LowHighMot.zip and move this zipped folder to the folder of Build in Postprocessing.
 
 ## Output:
 Zipped folder SnapshotBuild_LowHighMot.zip.
