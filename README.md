@@ -3,7 +3,7 @@ This project provides the code to explore a generalisation of the staircase mode
 
 # Steps to run the code:
 ## Preprocessing:
-(Tested on Ubuntu 20.04, a supercomputing cluster operated by SLURM with 100 nodes (skylake architecture). Estimated install time: 1 hour. Estimated run time for a single Figure in [2]: 4 days. Estimated run time for a single Movie in [2]: 10 hours.)
+(Tested on Ubuntu 20.04, a supercomputing cluster operated by SLURM with 100 nodes (skylake architecture). Estimated install time: 1 hour. Estimated run time for a single Figure in [2]: 4 days. Estimated run time for a single Movie in [2]: 2 hours.)
 1) Prepare a folder od a disk with sufficient free space - usually thousands of output files are created after a submission of a job array into the SLURM.
 2) Install GNU C Compiler, for example with a command: module load gcc-9.3.0
 3) Compile the files, for example with a command: g++ -std=c++11 -O3 -march=skylake MMainFile.cpp Lattice.cpp Functions.cpp
