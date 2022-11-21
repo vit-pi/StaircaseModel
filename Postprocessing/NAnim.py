@@ -8,15 +8,16 @@ import NSnapDatabase as sd
 # PLOT
 ###
 # prepare file
-i = 3   # type of simulation
+i = 1   # type of simulation
 version = 1    # version of simulation
-max_time = 70
-sim_delay = 0.1
+max_time = 300
+sim_delay = 0.5
 fps = 25
 staircase = True
 wildtype = True
 
-file_specifiers = ["M1E2_RC2E1", "M1_RC2E1",
+file_specifiers = ["M20_D3E1_R1", "M20_D3E1_R2", "M20_D3E1_R3",
+                   "M1E2_RC2E1", "M1_RC2E1",
                    "M10_D4E1_R1", "M10_D4E1_R2", "M10_D4E1_R3",
                    "SwM1E2_SwD1Ep3_D1E1", "SwM3_SwD1Ep3_D1E1", "SwM1E2_SwD1Ep4_D1E1", "SwM3_SwD1Ep4_D1E1",
                    "SwM1E2_SwD1Ep3_D3E1", "SwM3_SwD1Ep3_D3E1", "SwM1E2_SwD1Ep4_D3E1", "SwM3_SwD1Ep4_D3E1",
@@ -28,7 +29,7 @@ file_specifiers = ["M1E2_RC2E1", "M1_RC2E1",
                    "SwM3_SwD5Ep4_D1E1", "SwM3_SwD5Ep4_D3E1", "SwM1E2_SwD5Ep4_D1E1", "SwM1E2_SwD5Ep4_D3E1",
                    "M1E2_HGT1E7", "M1E2_HGT1E4", "M1_HGT1E7", "M1_HGT1E4",
                    "M1E2_SD7E1", "M1_SD7E1",]
-zip = "Build/SnapshotBuild_ResCost_DeadReg.zip"  # "Build/SnapshotBuild.zip"
+zip = "Build/SnapshotBuild_DeadReg.zip"  # "Build/SnapshotBuild.zip"
 
 def make_plot(i):
     file_path = "Snap_" + file_specifiers[i] + "_V" + str(version)
