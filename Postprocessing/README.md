@@ -18,7 +18,7 @@ This demo shows how to do Postprocessing of Supplementary Movie 1 in [1]. Prepro
 5) Use your favourite software to turn a sequence of movie snapshots into a movie file. (I used ImageJ.)
 
 ## Output:
-A folder with snapshots of Supplementary Movie 1 in the RawMovies folder. With a use of a third-party software, this can be turned into a movie.
+A folder with snapshots of Supplementary Movie 1 in the RawMovies folder. With a use of a third-party software, this can be turned into a movie. Only the end-result is shown in the folder since the snapshots take a large size.
 
 ## Estimated run time:
 2 minutes
