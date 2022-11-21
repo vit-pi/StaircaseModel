@@ -7,5 +7,21 @@ This object can be used for postprocessing of the raw data produced with the Ada
 ## SnapDatabase (NSnapDatabase.py)
 This object can be used for postprocessing of the raw data produced with the SnapshotTot function in the preprocessing (see Functions.h) - primarily used to capture snapshots of time-evolution at regular times. The methods of this object are divided into data access and plotting functions. The data access functions can be used to transform the data from the preprocessing into Python objects and to transform these Python objects. The plotting functions are methods which aid the plotting into matplotlib axes.
 
+# Demo
+This demo shows how to do Postprocessing of Supplementary Movie 1 in [1]. Preprocessing is covered in the respective folder.
+
+## Instructions:
+1) Check that the file SnapshotBuild_LowHighMot.zip, created in Preprocessing, is saved in the folder Build.
+2) Create a folder RawMovies.
+3) Open the file AnimPlots.py and run the code.
+4) Open the folder RawMovies and notice that a folder with the snapshots of the movie were created.
+5) Use your favourite software to turn a sequence of movie snapshots into a movie file. (I used ImageJ.)
+
+## Output:
+A folder with snapshots of Supplementary Movie 1 in the RawMovies folder. With a use of a third-party software, this can be turned into a movie.
+
+## Estimated run time:
+2 minutes
+
 # References:
 [1] V. Piskovsky, N. Oliveira, unpublished at the moment
