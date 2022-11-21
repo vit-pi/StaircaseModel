@@ -320,7 +320,7 @@ class AdapDatabase:
     # make the motility-adaptation rate plot of given time_type, LD, and death parameter
     # output: [min_adap_rate, max_adap_rate, plots]
     # input: death (must match existing death_param), time_type (0=T, 1=D), LD,
-    #        analytics (t/f, poin_num, precision, Hermsen), ax, min_max, labels (t/f), legend_name (string), background (t/f)
+    #        analytics (t/f, poin_num, precision, Hermsen, hom_sel), ax, min_max, labels (t/f), legend_name (string), background (t/f)
     # note: assume all input data are of the same StandardA experiment
     def standard_motility_adap_plot(self, death, LD, time_type, analytics, ax, min_max, labels, legend_name, background):
         # prepare adaptation rates, and find minimal and maximal adaptation rate
@@ -380,12 +380,16 @@ class AdapDatabase:
         # plot the labels
         if labels:
             ax.set_xlabel("motility $\\nu$ (1/h)")
-            ax.set_ylabel("adaptation $a_2$ (1/h)")
+            ax.set_ylabel("adaptation $a_R$ (1/h)")
         # plot the analytics
         if analytics[0]:
             point_num = analytics[1]
             move_params = np.logspace(np.log10(self.exp_type[0].move_params[0]/2), np.log10(self.exp_type[0].move_params[-1]*2), num=point_num)
             adap_params = np.zeros(point_num)
+            if len(analytics)>4 and analytics[4]:
+                ax_twin = ax.twinx()
+                sel_params = np.zeros(point_num)
+                ax_twin.set_yscale("log")
             if analytics[3]:
                 hermsen_params = np.zeros(point_num)
             l_prop = sc.LatProp()
@@ -398,9 +402,14 @@ class AdapDatabase:
                 if analytics[3]:
                     hermsen_params[i] = stair.Her_adap_rate()
                 adap_params[i] = stair.retarded_adap_rate(analytics[2], 1e4)
+                if len(analytics) > 4 and analytics[4]:
+                    sel_params[i] = stair.homog_selection(analytics[2], 1e4)
             if crit_mot is None:
                 mask = np.isfinite(adap_params)
                 p = ax.plot(move_params[mask], adap_params[mask], label=legend_name[1])
+                if len(analytics) > 4 and analytics[4]:
+                    mask = np.isfinite(sel_params)
+                    q = ax_twin.plot(move_params[mask], sel_params[mask], label=legend_name[1], color='red')
             else:
                 mask1 = np.zeros(point_num, dtype=bool)
                 mask2 = np.zeros(point_num, dtype=bool)
@@ -412,7 +421,22 @@ class AdapDatabase:
                             mask2[i] = True
                 p = ax.plot(move_params[mask1], adap_params[mask1], label=legend_name[1])
                 ax.plot(move_params[mask2], adap_params[mask2], '--', color=p[0].get_color(), label=legend_name[1])
+                if len(analytics) > 4 and analytics[4]:
+                    mask1 = np.zeros(point_num, dtype=bool)
+                    mask2 = np.zeros(point_num, dtype=bool)
+                    for i in range(point_num):
+                        if np.isfinite(sel_params[i]):
+                            if move_params[i] < crit_mot:
+                                mask1[i] = True
+                            else:
+                                mask2[i] = True
+                    q = ax_twin.plot(move_params[mask1], sel_params[mask1], label=legend_name[1], color='red')
+                    ax.plot(move_params[mask2], sel_params[mask2], '--', color=p[0].get_color(), label=legend_name[1])
             plots.append(p[0])
+            if len(analytics) > 4 and analytics[4]:
+                plots.append(q[0])
+                ax_twin.set_ylabel("selection $s$", fontsize=12)
+                #ax_twin.set_ylim(2e-3, 30)
             if analytics[3]:
                 p = ax.plot(move_params, hermsen_params, '--', color='grey', label="Hermsen, 2012")
                 plots.append(p[0])
@@ -3144,4 +3168,3 @@ class ResCostDeadlyA:
         l_prop = sc.LatProp()
         l_prop.LD = LD
         return sc.Staircase(l_prop, p_prop)
-    
