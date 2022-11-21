@@ -8,23 +8,23 @@ import NSnapDatabase as sd
 # PLOT
 ###
 # prepare file
-fig_titles = ["Positive chemotaxis", "Negative chemotaxis"]
-animation_name = "Chemotax"
-sim_indices = [0,1]   # type of simulations
+fig_titles = ["Low motility", "High motility"]
+animation_name = "LowHighMotility"
+sim_indices = [0, 1]   # type of simulations
 version = 1    # version of simulation
-max_time = 1920
+max_time = 2000
 sim_delay = 10
-fps = 25
+fps = 20
 staircase = True
 wildtype = True
 
-file_specifiers = ["M1_C6E1", "M1_C2E1",
+file_specifiers = ["M1E2", "M1",
+                   "M1_C6E1", "M1_C2E1",
                    "M10_C7E1", "M3E1_C3E1",
                    "M2_M1E2_S1E3", "M2_M1E2_S5",
                    "M3_M1E4_S1E3_D3E1", "M3_M1E4_S1E3_D1E1", "M3_M1E4_S5_D3E1", "M3_M1E4_S5_D1E1",
                    "M3_M1_S1E3_D3E1", "M3_M1_S1E3_D1E1", "M3_M1_S5_D3E1", "M3_M1_S5_D1E1",
                    "M1E2_C7E1", "M1_C7E1", "M1E2_C3E1", "M1_C3E1",
-                   "M1E2", "M1",
                    "M20_D3E1_R1", "M20_D3E1_R2", "M20_D3E1_R3",
                    "M1E2_RC2E1", "M1_RC2E1",
                    "M10_D4E1_R1", "M10_D4E1_R2", "M10_D4E1_R3",
@@ -34,7 +34,7 @@ file_specifiers = ["M1_C6E1", "M1_C2E1",
                    "SwM3_SwD5Ep4_D1E1", "SwM3_SwD5Ep4_D3E1", "SwM1E2_SwD5Ep4_D1E1", "SwM1E2_SwD5Ep4_D3E1",
                    "M1E2_HGT1E7", "M1E2_HGT1E4", "M1_HGT1E7", "M1_HGT1E4",
                    "M1E2_SD7E1", "M1_SD7E1",]
-zip = "Build/SnapshotBuild_SameAdap.zip"  # "Build/SnapshotBuild.zip"
+zip = "Build/SnapshotBuild_LowHighMot.zip"  # "Build/SnapshotBuild.zip"
 
 def make_plot(sim_indices):
     simulations = []
