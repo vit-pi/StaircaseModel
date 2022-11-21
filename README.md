@@ -3,7 +3,7 @@ This project provides the code to explore a generalisation of the staircase mode
 
 # Steps to run the code:
 ## Preprocessing:
-(Tested on Ubuntu 20.04, a supercomputing cluster operated by SLURM with 100 nodes (skylake architecture). Estimated install time: 1 hour. Estimated run time for a single Figure in [2]: 4 days.)
+(Tested on Ubuntu 20.04, a supercomputing cluster operated by SLURM with 100 nodes (skylake architecture). Estimated install time: 1 hour. Estimated run time for a single Figure in [2]: 4 days. Estimated run time for a single Movie in [2]: 10 hours.)
 1) Prepare a folder od a disk with sufficient free space - usually thousands of output files are created after a submission of a job array into the SLURM.
 2) Install GNU C Compiler, for example with a command: module load gcc-9.3.0
 3) Compile the files, for example with a command: g++ -std=c++11 -O3 -march=skylake MMainFile.cpp Lattice.cpp Functions.cpp
@@ -20,7 +20,7 @@ This project provides the code to explore a generalisation of the staircase mode
 7) Once all jobs are finished, zip the folder.
 
 ## Postprocessing:
-(Tested on Windows 11 Home, Windows 11 Home, Intel(R) Core(TM) i7-8550U CPU, 16 GB RAM, Python and PyCharm installed. Estimated install time: 1 hour. Estimated run time for a single Figure in [2]: 10 minutes.)
+(Tested on Windows 11 Home, Windows 11 Home, Intel(R) Core(TM) i7-8550U CPU, 16 GB RAM, Python and PyCharm installed. Estimated install time: 1 hour. Estimated run time for a single Figure in [2]: 10 minutes. Estimated run time for a single Movie in [2]: 10 minutes.)
 1) Place the zip file from preprocessing into the Build folder for postprocessing.
 2) Run the postprocessing code for producing the required output from the preprocessing data (such as figure).
 3) Your final output is ready.
