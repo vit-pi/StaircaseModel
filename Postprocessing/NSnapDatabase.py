@@ -264,6 +264,7 @@ class SnapDatabase:
         else:
             ax.set_xticks([1+k for k in range(self.l_prop.GridBound)])
         ax.set_ylim([0, self.l_prop.CarryingCapacity])
+        #ax.set_ylim([0, 7*self.l_prop.CarryingCapacity/2]) # for chemotaxis
         ax.set_xlim([1, self.l_prop.GridBound])
         ax.set_yticks([])
 
@@ -331,7 +332,7 @@ class SnapDatabase:
                 # birth rate
                 if N_tot[pos] < self.l_prop.CarryingCapacity:
                     if pos < LD+1:
-                        r_net[pos] += self.p_prop[plot_pop].BirthRate*(1-N_tot[pos]/self.l_prop.CarryingCapacity)
+                        r_net[pos] += self.p_prop[plot_pop].BirthRate*(1-N_tot[pos]/self.l_prop.CarryingCapacity)*((1-self.p_prop[plot_pop].ResistCost)**(LD-pos))
                     else:
                         r_net[pos] += self.p_prop[plot_pop].StressBirthRate*(1-N_tot[pos]/self.l_prop.CarryingCapacity)
                 # death rate:
@@ -440,10 +441,10 @@ class SnapDatabase:
             if self.l_prop.PopulationNumber == 1 and self.p_prop[0].ConsiderSwarm:
                 R = self.LD(GenSpaceTot)
                 S = self.S(GenSpaceTot, 0)
-                fig.suptitle('Time: '+"{:6.1f}".format(Time)+", R: "+str(R)+", S: "+str(S))
+                fig.suptitle('Time: '+"{:6.1f}".format(Time)+"h, R: "+str(R)+", S: "+str(S))
             else:
                 R = self.LD(GenSpaceTot)
-                fig.suptitle('Time: '+"{:6.1f}".format(Time)+", R: "+str(R))
+                fig.suptitle('Time: '+"{:6.1f}".format(Time)+"h, R: "+str(R))
             # take a snapshot and clear the canvas
             fig.savefig(folder_name+"\\"+animation_name+"-"+str(plot_index+1)+".png", dpi=300)  # save the figure to file
             for ax in axs:
@@ -589,3 +590,78 @@ class SnapDatabase:
             ax.legend()
             ax.set_xlabel("time t (h)")
             ax.set_ylabel("swarming and resistance levels")
+
+###
+# OTHER FUNCTIONS
+###
+
+# produces an animation of staircase and wild_type plots from mutliple simulations
+# the code requires: SAME POPULATION NUMBER, SAME TITLES FOR RESPECTIVE POPULATIONS
+# input: staircase (t/f), wildtype (t/f), max_time, fps speed (60 ususal), animation_name
+def animated_plot(simulations, staircase, wildtype, max_time, sim_delay, titles, fig_titles, animation_name):
+    # prepare figure properties
+    staircase_num = int(staircase) * simulations[0].l_prop.PopulationNumber
+    wildtype_num = int(wildtype)
+    sim_num = len(simulations)
+    for sim in range(sim_num):
+        fig_titles[sim] = r"$\bf{" + fig_titles[sim].replace(" ", r"}$ $\bf{") + "}$"
+    staircase_width = 5.5
+    wildtype_width = 5.5
+    width = staircase_width * staircase_num + wildtype_width * wildtype_num
+    height = 5*sim_num
+    width_ratio = [staircase_width for i in range(staircase_num)] + [wildtype_width for i in range(wildtype_num)]
+    title_colors = ['#2E86C1', '#D4AC0D', '#28B463', '#CA6F1E']
+    # create figure
+    fig = plt.figure(figsize=(width, height))
+    subfigs = fig.subfigures(nrows=sim_num, ncols=1)
+    axs = []
+    for row, subfig in enumerate(subfigs):
+        axes = subfig.subplots(nrows=1, ncols=staircase_num + wildtype_num, gridspec_kw={'width_ratios': width_ratio})
+        sub_axs = []
+        if staircase_num + wildtype_num == 1:
+            sub_axs.append(axes)
+        else:
+            for plot in range(staircase_num + wildtype_num):
+                sub_axs.append(axes[plot])
+        if wildtype:
+            ax_twin = sub_axs[staircase_num].twinx()
+            sub_axs.append(ax_twin)
+        axs.append(sub_axs)
+    # prepare folder
+    date_time = datetime.datetime.now()
+    folder_specifier = "_" + str(date_time.date().day) + "_" + str(date_time.date().month) + "_" + str(
+        date_time.date().year) + "_" \
+                       + str(date_time.time().hour) + "_" + str(date_time.time().minute)
+    folder_name = "RawMovies\\" + animation_name + folder_specifier
+    os.mkdir(folder_name)
+    # draw the figure for each time and take a snapshot
+    stop_times = [simulations[sim].stop_time for sim in range(sim_num)]
+    max_time = min([max_time]+stop_times)
+    for plot_index in range(int(max_time / sim_delay)):
+        for sim in range(sim_num):
+            sim_index = int(sim_delay / simulations[sim].sim_interval) * plot_index
+            # plot staircase
+            if staircase:
+                for plot_pop in range(staircase_num):
+                    simulations[sim].staircase_plot(sim_index, simulations[sim].l_prop.PopulationNumber - 1 - plot_pop, axs[sim][plot_pop], True)
+                    if staircase_num > 1:
+                        axs[sim][plot_pop].set_title(titles[plot_pop], color=title_colors[plot_pop])
+            # plot wildtype
+            if wildtype:
+                simulations[sim].wild_type_plot(sim_index, True, True, True, True, False, axs[sim][staircase_num], axs[sim][staircase_num + 1], False)
+            # read gen_space_tot
+            if simulations[sim].read_gen_space_tot(sim_index) is None:
+                [Time, GenSpaceTot] = [np.inf, np.zeros((simulations[sim].l_prop.PopulationNumber, simulations[sim].l_prop.GridBound, simulations[sim].l_prop.GridBound))]
+            else:
+                [Time, GenSpaceTot] = simulations[sim].read_gen_space_tot(sim_index)
+            # plot title
+            R = simulations[sim].LD(GenSpaceTot)
+            subfigs[sim].suptitle(fig_titles[sim]+", Time: " + "{:6.1f}".format(Time) + "h, R: " + str(R))
+        # take a snapshot and clear the canvas
+        fig.savefig(folder_name + "\\" + animation_name + "-" + str(plot_index + 1) + ".png",
+                    dpi=300)  # save the figure to file
+        for sim in range(sim_num):
+            for ax in axs[sim]:
+                for artist in ax.lines + ax.collections + ax.patches:
+                    artist.remove()
+        print("Created frame: " + str(plot_index))
