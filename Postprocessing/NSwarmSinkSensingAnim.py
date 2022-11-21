@@ -59,7 +59,7 @@ for plot_index in range(int(max_time/sim_delay)):
         K_S = data_set[subplot].p_prop[0].SwarmingDensity
         axs[2*subplot].set_ylim([0, 2*K_S])
         axs[2*subplot].set_yticks([0, K_S/2, K_S, 3*K_S/2, 2*K_S])
-        axs[2*subplot].set_yticklabels(["0", "$K_S/2$", "$K_S$", "$3K_S/2$", "$2K_S$"])
+        axs[2*subplot].set_yticklabels(["0", "$S/2$", "$S$", "$3S/2$", "$2S$"])
         # read gen_space_tot
         if data_set[subplot].read_gen_space_tot(sim_index) is None:
             [Time, GenSpaceTot] = [np.inf, np.zeros((data_set[subplot].l_prop.PopulationNumber, data_set[subplot].l_prop.GridBound, data_set[subplot].l_prop.GridBound))]
@@ -70,7 +70,7 @@ for plot_index in range(int(max_time/sim_delay)):
             S = data_set[subplot].S(GenSpaceTot, 0)
             axs[2*subplot].set_title(titles[subplot])#+", S: "+str(S))
         if subplot == 0:
-           fig.suptitle('Time'+": {:6.1f}".format(Time))
+           fig.suptitle('Time'+": {:6.1f}".format(Time)+"h")
     # take a snapshot and clear the canvas
     fig.savefig(folder_name+"\\"+animation_name+"-"+str(plot_index+1)+".png", dpi=300)  # save the figure to file
     for ax in axs:
