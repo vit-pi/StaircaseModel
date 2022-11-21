@@ -25,24 +25,21 @@ vector<PopProp> PProp(1);
 ///
 
 int main(void) {
-	// Choose parameters
-	double StopTime = 1E4;
-    double SimInterval = 1E-1;
-    string FileSpecifier = "M10_D4E1_R3";
-    LProp.GridBound = 8;
-	LProp.GenBound = 8;
-    PProp[0].Move = 10;
-    PProp[0].DeathRate = 4E-1;
-    PProp[0].InitCellsNum = 9E4;
-    PProp[0].InitCellsGen = 2;
-    PProp[0].InitCellsPos = 2;
-	// Run SnapshotTot simualtion
+    // Choose parameters
+    double StopTime = 1E4;
+    double SimInterval = 1;
+    string FileSpecifier = "M1E2";
+    PProp[0].Move = 1E-2;
+    // Run SnapshotTot simualtion
     SnapshotTot(LProp, PProp, SimInterval, StopTime, FileSpecifier);
-	return 0;
+    return 0;
 }
 
 // List of used simulations (write ParameterValue_... for FileSpecifier, StopTime, SimInterval):
 // Notice values: 1e-3=1E3, 1e3=1Ep3 (p=positive, most exponents negative -> blank)
+
+// M1E2, 1E4, 1 - low motility
+// M1, 1E4, 1 - high motility
 
 // M10_D4E1_R0, 1E4, 1E-1 - deadly motility, R=0
 // M10_D4E1_R1, 1E4, 1E-1 - deadly motility, R=1
@@ -56,8 +53,6 @@ int main(void) {
 // M1E2_HGT1E4, 2E3, 1 - high HGT, high motility
 // M1_HGT1E7, 2E3, 1 - low HGT, high motility
 // M1_HGT1E4, 2E3, 1 - high HGT, high motility
-// M1E2, 1E4, 1 - low motility
-// M1, 1E4, 1 - high motility
 
 // M1E2_M1E4_S1E3_D3E1, 1E4, 1 - low motility, low switching, high death
 // M1E2_M1E4_S1E3_D1E1, 1E4, 1 - low motility, low switching, low death
