@@ -460,6 +460,18 @@ class Staircase:
         else:
             return 1 / (T1 + D)
 
+    # compute the selection in homogeneous environment corresponding to a given adaptation rate
+    def homog_selection(self, h, t_max):
+        a = self.retarded_adap_rate(h, t_max)
+        if a == self.LProp.CarryingCapacity*self.PProp[0].MuteUp or a=='NaN':
+            s = 'NaN'
+        else:
+            s = a / (self.LProp.CarryingCapacity * self.PProp[0].MuteUp - a)
+        print("s = "+str(s))
+        print("a = "+str(a))
+        print("mute_up border-line "+str(self.LProp.CarryingCapacity * self.PProp[0].MuteUp))
+        return s
+
     # computes overall deterministic waiting time starting from x_init (2*GridBound*PopNum entries), time step h, up to t_max
     def deterministic_time(self, h, t_max, x_init):
         x = x_init
