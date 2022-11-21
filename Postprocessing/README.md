@@ -24,4 +24,4 @@ A folder with snapshots of Supplementary Movie 1 in the RawMovies folder. With a
 2 minutes
 
 # References:
-[1] V. Piskovsky, N. Oliveira, unpublished at the moment
+[1] V. Piskovsky, N. Oliveira, preprint, https://www.biorxiv.org/content/10.1101/2022.10.21.513270v1
