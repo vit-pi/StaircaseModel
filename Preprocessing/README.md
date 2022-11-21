@@ -18,7 +18,7 @@ This demo shows how to create Movie 1 in [2]. Figures are created similarly with
 2) Open MSnapshotTot.cpp and check that it is ready to simulate the low motility regime with motility rate PProp[0].Move = 1E-2.
 3) Compile with a command: g++ -std=c++11 -O3 -march=skylake MSnapshotTot.cpp Lattice.cpp Functions.cpp.
 4) Save the compiled file as LowMot.out in the folder Code.
-5) Modify the motility in the MSnapshotTot.cpp file to simulate the high motility regime: PProp[0].Move = 1.
+5) Modify the motility in the MSnapshotTot.cpp file to simulate the high motility regime: PProp[0].Move = 1 and FileSpecifier = "M1";.
 6) Compile with a command: g++ -std=c++11 -O3 -march=skylake MSnapshotTot.cpp Lattice.cpp Functions.cpp.
 7) Save the compiled file as HighMot.out in the folder Code.
 4) In each folder Snap_M1E2_V1 (resp. Snap_M1_V1) create a file Bash.sh with the following content:
