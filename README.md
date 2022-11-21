@@ -25,7 +25,7 @@ This project provides the code to explore a generalisation of the staircase mode
 2) Run the postprocessing code for producing the required output from the preprocessing data (such as figure).
 3) Your final output is ready.
 
-# Reproduction Instructions
+# Reproduction Instructions:
 The instructions for the choice of parameters to reproduce the Figures of [2] can be found in the Supplementary Text S8 of the paper.
 
 # References:
