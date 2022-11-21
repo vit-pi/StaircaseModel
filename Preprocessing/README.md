@@ -11,7 +11,7 @@ This contains the main object Lattice, and two supportive objects: IndexPriority
 This contains various functions for running appropriate simulation of the staircase. AdapImage and SnapshotTot are the most important functions. AdapImage saves the snapshots of the lattice at the times of adaptation in separate files and also saves these times in a special file. SnapshotTot saves the snapshots of the lattice at specified regular times.
 
 # Demo
-This demo shows how to do the preprocessing part of Movie 1 in [2]. Postprocessing part is covered in the respective folder. It has been chosen to make a demo for a movie as it is less time-consuming to run. Figures are created similarly with AdapImage function.
+This demo shows how to do Preprocessing of the Supplementary Movie 1 in [2]. Postprocessing is covered in the respective folder. Movies are less time-consuming to produce than Figures. Therefore a movie was chosen for a demo. Figures are created similarly with AdapImage function.
 
 ## Instructions:
 1) Prepare three folders: Snap_M1E2_V1, Snap_M1_V1, Code. (Can include more versions Snap_M1E2_V2, etc.)
