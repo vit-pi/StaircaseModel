@@ -26,7 +26,7 @@ This project provides the code to explore a generalisation of the staircase mode
 3) Your final output is ready.
 
 # Reproduction Instructions
-The instructions for the choice of parameters to reproduce the Figures and Movies of [2] can be found in the Supplementary Text S8 of the paper.
+The instructions for the choice of parameters to reproduce the Figures of [2] can be found in the Supplementary Text S8 of the paper.
 
 # References:
 [1] R. Hermsen, J. Deris, and T. Hwa, Proceedings of the National Academy of Sciences 109, 10775 (2012), https://www.pnas.org/doi/10.1073/pnas.1117716109.
