@@ -26,7 +26,40 @@ This project mathematically explores bacterial evolution of antibiotic resistanc
 3) Your final output is ready.
 
 # Reproduction Instructions:
-The instructions for the choice of parameters to reproduce the Figures of [2] can be found in the Supplementary Text S8 of the paper. Here, you can find a detailed guidance for running
+The instructions for the choice of parameters to reproduce the Figures of [2] can be found in the Supplementary Text S10 of the paper. Below, you can find a detailed instructions that explain which MMainFile.cpp file is needed in the preprocessing part and which Python file is needed in the postprocessing part to reproduce a particular figure.
+
+| **Figure** | **Preprocessing**        | **Notes for preprocessing**                                             | **Postprocessing** |
+|------------|--------------------------|-------------------------------------------------------------------------|--------------------|
+| 1C         | MSnapshotTot.cpp         | SimInterval=1; configure with values from Supp. Text S10 (Figure Notes) | Fig1c.py           |
+| 1D         | MStandardAdap.cpp        | x                                                                       | Fig1d.py           |
+| 2B         | MStandardAdap.cpp        | x                                                                       | Fig2b.py           |
+| 2C         | x                        | x                                                                       | Fig2c.py           |
+| 2D         | x                        | x                                                                       | Fig2d.py           |
+| 3B         | MMotSwitchDeadlyAdap.cpp | x                                                                       | Fig3b.py           |
+| 3C         | MMotSwitchDeadlyAdap.cpp | x                                                                       | Fig3c.py           |
+| 4B         | MDensSwitchAdap.cpp      | x                                                                       | Fig4b.py           |
+| 4C         | MDensSwitchAdap.cpp      | x                                                                       | Fig4c.py           |
+| 5B         | x                        | x                                                                       | Fig5b.py           |
+| 5C         | x                        | x                                                                       | Fig5c.py           |
+| Supp1C     | MStandardAdap.cpp        | x                                                                       | Fig1SIc.py         |
+| Supp2      | MResCostAdap.cpp         | Run twice: (1) DeathRate=1E-1, (2) DeathRate=3E-1                       | Fig2SI.py          |
+| Supp3      | MMutAdap.cpp             | x                                                                       | Fig3SI.py          |
+| Supp4      | MCompBelowStairAdap.cpp  | x                                                                       | Fig4SI.py          |
+| Supp5      | MStressDeathAdap.cpp     | x                                                                       | Fig5SI.py          |
+| Supp6      | MChemotaxAdap.cpp        | x                                                                       | Fig6SI.py          |
+| Supp7A     | MSwitchAdap.cpp          | x                                                                       | Fig7SIa.py         |
+| Supp7B     | MMotSwitchAdap.cpp       | x                                                                       | Fig7SIb.py         |
+| Supp7C     | x                        | x                                                                       | Fig7SIc.py         |
+| Supp8B     | MDensSwitchAdap.cpp      | x                                                                       | Fig4b.py           |
+| Supp8C     | MDensSwitchAdap.cpp      | x                                                                       | Fig8SIc.py         |
+| Supp8D     | MDensMotSwitchAdap.cpp   | x                                                                       | Fig8SId.py         |
+| Supp8E     | MDensMotSwitchAdap.cpp   | x                                                                       | Fig8SIe.py         |
+| Supp8F     | MSnapshotTot.cpp         | SimInterval=1; configure with values from Supp. Text S10 (Figure Notes) | Fig8SIf.py         |
+| Supp9      | MHGTAdap.cpp             | Run twice: (1) DeathRate=1E-1, (2) DeathRate=3E-1                       | Fig9.py            |
+| Movie1     | MSnapshotTot.cpp         | SimInterval=10; configure with values under the Movie in Supp. Text     | Movie1.py          |
+| Movie2     | MSnapshotTot.cpp         | SimInterval=10; configure with values under the Movie in Supp. Text     | Movie2.py          |
+| Movie3     | MSnapshotTot.cpp         | SimInterval=10; configure with values under the Movie in Supp. Text     | Movie3.py          |
+| Movie4     | MSnapshotTot.cpp         | SimInterval=0.1; configure with values under the Movie in Supp. Text    | Movie4.py          |
 
 # References:
 [1] V. Piskovsky, N. Oliveira, preprint, https://www.biorxiv.org/content/10.1101/2022.10.21.513270v1
