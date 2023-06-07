@@ -38,6 +38,10 @@ import zipfile
 # 17=DensSwitchA -> params=(death, switch_density, move_low_dens, move_high_dens)
 # 18=ResCostA -> params=(move, resist_cost)
 # 19=ResCostDeadlyA -> params=(move, resist_cost)
+# 20=MutA -> params=(death, mute_up, move)
+# 21=CompBelowStairA -> params=(death,comp_below_stair,move)
+# 22=DensMotSwitchA -> params=(death, switch_density, move_low_dens, move_high_dens)
+# 23=DensMotSwitchB -> params=(death, switch_density, move_low_dens, move_high_dens)
 
 class AdapDatabase:
 
@@ -56,7 +60,7 @@ class AdapDatabase:
             self.zip_files = []
             for zip_name in zip:
                 self.zip_files.append(zipfile.ZipFile(zip_name))
-        possible_experiment_types = [MotSwitchA(), ChemotaxA(), StandardA(), SpecialA(), ResistCostA(), StressBirthA(), StressDeathA(), SpecialB(), ResistCostB(), StressBirthDeathA(), StressDeathB(), SwitchA(), MotSwitchDeadlyA(), SwarmLagA(), SwarmDeadlyA(), HGTA(), HGTDeadlyA(), DensSwitchA(), ResCostA(), ResCostDeadlyA()]
+        possible_experiment_types = [MotSwitchA(), ChemotaxA(), StandardA(), SpecialA(), ResistCostA(), StressBirthA(), StressDeathA(), SpecialB(), ResistCostB(), StressBirthDeathA(), StressDeathB(), SwitchA(), MotSwitchDeadlyA(), SwarmLagA(), SwarmDeadlyA(), HGTA(), HGTDeadlyA(), DensSwitchA(), ResCostA(), ResCostDeadlyA(), MutA(), CompBelowStairA(), DensMotSwitchA(), DensMotSwitchB()]
         self.exp_type = []
         for type in types:
             self.exp_type.append(copy.deepcopy(possible_experiment_types[type]))
@@ -175,10 +179,10 @@ class AdapDatabase:
             if grid_bound != self.exp_type[sim_id].GridBound:
                 print("GridBounds in adap_rate computation differ. Function adap_rate might misbehave!")
         # prepare containers
-        adap = np.zeros((3, grid_bound))                      # adaptation rate
-        standard_deviation = np.zeros((3, grid_bound))        # standard deviation
-        delta = np.zeros((3, grid_bound, total_repeats))      # time differences between steps, sum over all computation
-        num = np.zeros((3, grid_bound), dtype=int)            # number of time differences added to the sum
+        adap = np.zeros((3, grid_bound))                                   # adaptation rate
+        standard_deviation = np.zeros((3, grid_bound))                     # standard deviation
+        delta = np.zeros((3, grid_bound, total_repeats), dtype=float)      # time differences between steps, sum over all computation
+        num = np.zeros((3, grid_bound), dtype=int)                         # number of time differences added to the sum
         for sim_id in range(len(self.exp_type)):
             if params[sim_id] is not None:
                 for run_index in range(self.exp_type[sim_id].repeat):
@@ -327,17 +331,22 @@ class AdapDatabase:
         plots = []
         move_num = len(self.exp_type[0].move_params)
         adap_rates = np.zeros(move_num)
+        stds = np.zeros(move_num)
         crit_mot = None
         for move_index in range(move_num):
             move = self.exp_type[0].move_params[move_index]
             # get adaptation rate
             if self.adap_rate((move, death)) is None:
                 adap_rate = 'NaN'
+                std = 'NaN'
             else:
                 adap_rate = self.adap_rate((move, death))[0][time_type][LD - 1]
+                std = self.adap_rate((move, death))[1][time_type][LD - 1]
                 if np.isnan(adap_rate):
                     adap_rate = 'NaN'
+                    std = 'NaN'
             adap_rates[move_index] = adap_rate
+            stds[move_index] = std
             # get critical motility
             if crit_mot is None:
                 if adap_rate == 'NaN':
@@ -354,6 +363,8 @@ class AdapDatabase:
         # make the plot
         p = ax.scatter(self.exp_type[0].move_params, adap_rates, label=legend_name[0])
         plots.append(p)
+        #for move_index in range(move_num):
+        #    ax.vlines(x=self.exp_type[0].move_params[move_index], ymin=adap_rates[move_index]-stds[move_index], ymax=adap_rates[move_index]+stds[move_index], color=p.get_facecolor())
         ax.set_yscale("log")
         ax.set_xscale("log")
         ax.set_xlim(self.exp_type[0].move_params[0] / 10, self.exp_type[0].move_params[-1] * 10)
@@ -380,13 +391,13 @@ class AdapDatabase:
         # plot the labels
         if labels:
             ax.set_xlabel("motility $\\nu$ (1/h)")
-            ax.set_ylabel("adaptation $a_R$ (1/h)")
+            ax.set_ylabel("adaptation rate $a_R$ (1/h)")
         # plot the analytics
         if analytics[0]:
             point_num = analytics[1]
             move_params = np.logspace(np.log10(self.exp_type[0].move_params[0]/2), np.log10(self.exp_type[0].move_params[-1]*2), num=point_num)
             adap_params = np.zeros(point_num)
-            if len(analytics)>4 and analytics[4]:
+            if len(analytics) > 4 and analytics[4]:
                 ax_twin = ax.twinx()
                 sel_params = np.zeros(point_num)
                 ax_twin.set_yscale("log")
@@ -401,7 +412,10 @@ class AdapDatabase:
                 stair = sc.Staircase(l_prop, p_prop)
                 if analytics[3]:
                     hermsen_params[i] = stair.Her_adap_rate()
-                adap_params[i] = stair.retarded_adap_rate(analytics[2], 1e4)
+                if time_type == 0:
+                    adap_params[i] = stair.retarded_adap_rate(analytics[2], 1e4)
+                else:
+                    adap_params[i] = stair.adap_rate(analytics[2], 1e4)
                 if len(analytics) > 4 and analytics[4]:
                     sel_params[i] = stair.homog_selection(analytics[2], 1e4)
             if crit_mot is None:
@@ -441,7 +455,7 @@ class AdapDatabase:
                 p = ax.plot(move_params, hermsen_params, '--', color='grey', label="Hermsen, 2012")
                 plots.append(p[0])
         ax.set_ylim(min, max)
-        return [min, max, plots]
+        return [min, max, adap_rates, stds, plots]
 
     # make the switching-adaptation rate plot of given time_type, LD, and death parameter
     # output: [min_adap_rate, max_adap_rate]
@@ -453,17 +467,22 @@ class AdapDatabase:
         plots = []
         switch_num = len(self.exp_type[0].switch_params)
         adap_rates = np.zeros(switch_num)
+        stds = np.zeros(switch_num)
         crit_switch = None
         for switch_index in range(switch_num):
             switch = self.exp_type[0].switch_params[switch_index]
             # get adaptation rate
             if self.adap_rate((switch, death)) is None:
                 adap_rate = 'NaN'
+                std = 'NaN'
             else:
                 adap_rate = self.adap_rate((switch, death))[0][time_type][LD - 1]
+                std = self.adap_rate((switch, death))[1][time_type][LD - 1]
                 if np.isnan(adap_rate):
                     adap_rate = 'NaN'
+                    std = 'NaN'
             adap_rates[switch_index] = adap_rate
+            stds[switch_index] = std
             # get critical motility
             if crit_switch is None:
                 if adap_rate == 'NaN':
@@ -506,7 +525,7 @@ class AdapDatabase:
         # plot the labels
         if labels:
             ax.set_xlabel("motility $\\nu$ (1/h)")
-            ax.set_ylabel("adaptation $a_2$ (1/h)")
+            ax.set_ylabel("adaptation rate $a_R$ (1/h)")
         # plot low switching asymptote
         if asymptotes[0]:
             switch_params = [self.exp_type[0].switch_params[0]/10, death]
@@ -516,7 +535,10 @@ class AdapDatabase:
             p_prop[0].Move = self.exp_type[0].Move[0]
             p_prop[0].DeathRate = death
             stair = sc.Staircase(l_prop, p_prop)
-            adap_rate = stair.retarded_adap_rate(1e-2, 1e4)
+            if time_type == 0:
+                adap_rate = stair.retarded_adap_rate(1e-2, 1e4)
+            else:
+                adap_rate = stair.adap_rate(1e-2, 1e4)
             adap_params = [adap_rate, adap_rate]
             p = ax.plot(switch_params, adap_params, '--', color='grey')
             plots.append(p[0])
@@ -569,11 +591,11 @@ class AdapDatabase:
                 ax.plot(switch_params[mask2], adap_params[mask2], '--', color=p[0].get_color(), label=legend_name[1])
             plots.append(p[0])
         ax.set_ylim(min, max)
-        return [min, max, plots]
+        return [min, max, adap_rates, stds, plots]
 
     # make the heatmap plot of adaptation rat of given time_type, LD
     # output: [min_adap_rate, max_adap_rate, im]
-    # input: switch_param (must match existing switch_param), time_type (0=T, 1=D), LD, fig, ax, min_max, colorbar (True/False), labels(True,False)
+    # input: time_type (0=T, 1=D), LD, fig, ax, min_max, colorbar (True/False), labels(True,False)
     # note: assume all input data are of the same ChemotaxA experiment
     def chemotax_heatmap(self, LD, time_type, fig, ax, min_max, colorbar, labels):
         # prepare x, y axes
@@ -588,17 +610,22 @@ class AdapDatabase:
         chem_axis = np.transpose(chem_axis)
         # prepare adaptation rates, and find minimal non-zero and maximal adaptation rate
         adap_rates = np.zeros((move_num, chem_num))
+        stds = np.zeros((move_num, chem_num))
         for move_index in range(move_num):
             for chem_index in range(chem_num):
                 move = self.exp_type[0].move_params[move_index]
                 chem = self.exp_type[0].chemotax_params[chem_index]
                 if self.adap_rate((move, chem)) is None:
                     adap_rate = 0
+                    std = 'NaN'
                 else:
                     adap_rate = self.adap_rate((move, chem))[0][time_type][LD-1]
+                    std = self.adap_rate((move, chem))[1][time_type][LD - 1]
                     if np.isnan(adap_rate):
                         adap_rate = 0
+                        std = 'NaN'
                 adap_rates[move_index][chem_index] = adap_rate
+                stds[move_index][chem_index] = std
         if min_max is None:
             max = adap_rates.max()
             if np.amin(adap_rates) == 0:
@@ -612,8 +639,8 @@ class AdapDatabase:
             if np.amin(adap_rates) == 0:
                 adap_rates = np.where(adap_rates == 0, min/2, adap_rates)
         # prepare colormap which has a red color for no adaptation rate
-        my_cmap = cm.get_cmap('viridis').copy()
-        my_cmap.set_under(color='red')
+        my_cmap = cm.get_cmap('magma').copy()
+        my_cmap.set_under(color='#d9d9d9')
         # make plot and add features
         adap_rates = np.transpose(adap_rates)
         im = ax.pcolormesh(move_axis, chem_axis, adap_rates, cmap=my_cmap, norm=LogNorm(vmin=min, vmax=max))
@@ -627,15 +654,15 @@ class AdapDatabase:
         if colorbar:
             cbar = fig.colorbar(im)
             if labels:
-                cbar.set_label("adaptation rate $a_2$ (1/h)", fontsize=12, rotation=90)
+                cbar.set_label("adaptation rate $a_R$ (1/h)", fontsize=12, rotation=90)
         if labels:
             ax.set_xlabel("motility $\\nu$ (1/h)", fontsize=12)
             ax.set_ylabel("chemotaxis p", fontsize=12)
-        return [min, max, im]
+        return [min, max, adap_rates, stds, im]
 
-    # make the heatmap plot of adaptation rat of given time_type, LD
+    # make the heatmap plot of adaptation rate of given time_type, LD
     # output: [min_adap_rate, max_adap_rate, im]
-    # input: switch_param (must match existing switch_param), time_type (0=T, 1=D), LD, fig, ax, min_max, colorbar (True/False), labels(True,False)
+    # input: time_type (0=T, 1=D), LD, fig, ax, min_max, colorbar (True/False), labels(True,False)
     # note: assume all input data are of the same ResCostA or ResCostDeadlyA experiment
     def res_cost_heatmap(self, LD, time_type, fig, ax, min_max, colorbar, labels):
         # prepare x, y axes
@@ -650,17 +677,22 @@ class AdapDatabase:
         cost_axis = np.transpose(cost_axis)
         # prepare adaptation rates, and find minimal non-zero and maximal adaptation rate
         adap_rates = np.zeros((move_num, cost_num))
+        stds = np.zeros((move_num, cost_num))
         for move_index in range(move_num):
             for cost_index in range(cost_num):
                 move = self.exp_type[0].move_params[move_index]
                 cost = self.exp_type[0].cost_params[cost_index]
                 if self.adap_rate((move, cost)) is None:
                     adap_rate = 0
+                    std = 'NaN'
                 else:
                     adap_rate = self.adap_rate((move, cost))[0][time_type][LD-1]
+                    std = self.adap_rate((move, cost))[1][time_type][LD - 1]
                     if np.isnan(adap_rate):
                         adap_rate = 0
+                        std = 'NaN'
                 adap_rates[move_index][cost_index] = adap_rate
+                stds[move_index][cost_index] = std
         if min_max is None:
             max = adap_rates.max()
             if np.amin(adap_rates) == 0:
@@ -674,8 +706,8 @@ class AdapDatabase:
             if np.amin(adap_rates) == 0:
                 adap_rates = np.where(adap_rates == 0, min/2, adap_rates)
         # prepare colormap which has a red color for no adaptation rate
-        my_cmap = cm.get_cmap('viridis').copy()
-        my_cmap.set_under(color='red')
+        my_cmap = cm.get_cmap('magma').copy()
+        my_cmap.set_under(color='#d9d9d9')
         # make plot and add features
         adap_rates = np.transpose(adap_rates)
         im = ax.pcolormesh(move_axis, cost_axis, adap_rates, cmap=my_cmap, norm=LogNorm(vmin=min, vmax=max))
@@ -686,11 +718,141 @@ class AdapDatabase:
         # set colorbar and labels
         if colorbar:
             cbar = fig.colorbar(im)
-            cbar.set_label("adaptation rate $a$ (1/h)", fontsize=12, rotation=90)
+            cbar.set_label("adaptation rate $a_R$ (1/h)", fontsize=12, rotation=90)
         if labels:
             ax.set_xlabel("motility $\\nu$ (1/h)", fontsize=12)
             ax.set_ylabel("resistance cost $c$", fontsize=12)
-        return [min, max, im]
+        return [min, max, adap_rates, stds, im]
+
+    # make the heatmap plot of adaptation rate of given time_type, LD
+    # output: [min_adap_rate, max_adap_rate, im]
+    # input: time_type (0=T, 1=D), LD, fig, ax, min_max, colorbar (True/False), labels(True,False)
+    # note: assume all input data are of the same MutA experiment
+    def mut_heatmap(self, death, LD, time_type, fig, ax, min_max, colorbar, labels):
+        # prepare x, y axes
+        move_num = len(self.exp_type[0].move_params)
+        mut_num = len(self.exp_type[0].mut_params)
+        move_axis = np.zeros((mut_num + 1, move_num + 1))
+        mut_axis = np.zeros((move_num + 1, mut_num + 1))
+        for c_index in range(mut_num+1):
+            move_axis[c_index] = np.asarray(self.exp_type[0].move_params+[31.6])
+        for m_index in range(move_num+1):
+            mut_axis[m_index] = np.asarray(self.exp_type[0].mut_params+[3.16e-3])
+        mut_axis = np.transpose(mut_axis)
+        # prepare adaptation rates, and find minimal non-zero and maximal adaptation rate
+        adap_rates = np.zeros((move_num, mut_num))
+        stds = np.zeros((move_num, mut_num))
+        for move_index in range(move_num):
+            for mut_index in range(mut_num):
+                move = self.exp_type[0].move_params[move_index]
+                mut = self.exp_type[0].mut_params[mut_index]
+                if self.adap_rate((death, mut, move)) is None:
+                    adap_rate = 0
+                    std = 'NaN'
+                else:
+                    adap_rate = self.adap_rate((death, mut, move))[0][time_type][LD-1]
+                    std = self.adap_rate((death, mut, move))[1][time_type][LD - 1]
+                    if np.isnan(adap_rate):
+                        adap_rate = 0
+                        std = 'NaN'
+                adap_rates[move_index][mut_index] = adap_rate
+                stds[move_index][mut_index] = std
+        if min_max is None:
+            max = adap_rates.max()
+            if np.amin(adap_rates) == 0:
+                min = np.amin(np.array(adap_rates)[adap_rates != 0])
+                adap_rates = np.where(adap_rates == 0, min/2, adap_rates)
+            else:
+                min = np.amin(adap_rates)
+        else:
+            min = min_max[0]
+            max = min_max[1]
+            if np.amin(adap_rates) == 0:
+                adap_rates = np.where(adap_rates == 0, min/2, adap_rates)
+        # prepare colormap which has a red color for no adaptation rate
+        my_cmap = cm.get_cmap('magma').copy()
+        my_cmap.set_under(color='#d9d9d9')
+        # make plot and add features
+        adap_rates = np.transpose(adap_rates)
+        im = ax.pcolormesh(move_axis, mut_axis, adap_rates, cmap=my_cmap, norm=LogNorm(vmin=min, vmax=max))
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.axvline(death, color='black', linestyle="--")
+        ax.text(0.5 * death, 1e-4, "$\\delta$", fontsize=12, color='black')
+        # set colorbar and labels
+        if colorbar:
+            cbar = fig.colorbar(im)
+            cbar.set_label("adaptation rate $a_R$ (1/h)", fontsize=12, rotation=90)
+        if labels:
+            ax.set_xlabel("motility $\\nu$ (1/h)", fontsize=12)
+            ax.set_ylabel("forward mutation rate $\\mu_f$ (1/h)", fontsize=12)
+        return [min, max, adap_rates, stds, im]
+
+
+    # make the heatmap plot of adaptation rate of given time_type, LD
+    # output: [min_adap_rate, max_adap_rate, im]
+    # input: time_type (0=T, 1=D), LD, fig, ax, min_max, colorbar (True/False), labels(True,False)
+    # note: assume all input data are of the same CompBelowStairA experiment
+    def comp_below_stair_heatmap(self, death, LD, time_type, fig, ax, min_max, colorbar, labels):
+        # prepare x, y axes
+        move_num = len(self.exp_type[0].move_params)
+        comp_num = len(self.exp_type[0].comp_params)
+        move_axis = np.zeros((comp_num + 1, move_num + 1))
+        comp_axis = np.zeros((move_num + 1, comp_num + 1))
+        for c_index in range(comp_num+1):
+            move_axis[c_index] = np.asarray(self.exp_type[0].move_params+[31.6])
+        for m_index in range(move_num+1):
+            params = [self.exp_type[0].comp_params[i]-0.05 for i in range(len(self.exp_type[0].comp_params))]
+            comp_axis[m_index] = np.asarray(params+[1.05])
+        comp_axis = np.transpose(comp_axis)
+        # prepare adaptation rates, and find minimal non-zero and maximal adaptation rate
+        adap_rates = np.zeros((move_num, comp_num))
+        stds = np.zeros((move_num, comp_num))
+        for move_index in range(move_num):
+            for comp_index in range(comp_num):
+                move = self.exp_type[0].move_params[move_index]
+                comp = self.exp_type[0].comp_params[comp_index]
+                if self.adap_rate((death, comp, move)) is None:
+                    adap_rate = 0
+                    std = 'NaN'
+                else:
+                    adap_rate = self.adap_rate((death, comp, move))[0][time_type][LD-1]
+                    std = self.adap_rate((death, comp, move))[1][time_type][LD - 1]
+                    if np.isnan(adap_rate):
+                        adap_rate = 0
+                        std = 'NaN'
+                adap_rates[move_index][comp_index] = adap_rate
+                stds[move_index][comp_index] = std
+        if min_max is None:
+            max = adap_rates.max()
+            if np.amin(adap_rates) == 0:
+                min = np.amin(np.array(adap_rates)[adap_rates != 0])
+                adap_rates = np.where(adap_rates == 0, min/2, adap_rates)
+            else:
+                min = np.amin(adap_rates)
+        else:
+            min = min_max[0]
+            max = min_max[1]
+            if np.amin(adap_rates) == 0:
+                adap_rates = np.where(adap_rates == 0, min/2, adap_rates)
+        # prepare colormap which has a red color for no adaptation rate
+        my_cmap = cm.get_cmap('magma').copy()
+        my_cmap.set_under(color='#d9d9d9')
+        # make plot and add features
+        adap_rates = np.transpose(adap_rates)
+        im = ax.pcolormesh(move_axis, comp_axis, adap_rates, cmap=my_cmap, norm=LogNorm(vmin=min, vmax=max))
+        ax.set_xscale("log")
+        ax.set_yticks([i/10 for i in range(11)])
+        ax.axvline(death, color='black', linestyle="--")
+        ax.text(0.5 * death, 1e-4, "$\\delta$", fontsize=12, color='black')
+        # set colorbar and labels
+        if colorbar:
+            cbar = fig.colorbar(im)
+            cbar.set_label("adaptation rate $a_R$ (1/h)", fontsize=12, rotation=90)
+        if labels:
+            ax.set_xlabel("motility $\\nu$ (1/h)", fontsize=12)
+            ax.set_ylabel("proportion of competitive non-growing cells $\\alpha$", fontsize=12)
+        return [min, max, adap_rates, stds, im]
 
     # make the heatmap plot of adaptation rat of given time_type, LD
     # output: [min_adap_rate, max_adap_rate, im]
@@ -714,6 +876,7 @@ class AdapDatabase:
         hgt_axis = np.transpose(hgt_axis)
         # prepare adaptation rates, and find minimal non-zero and maximal adaptation rate
         adap_rates = np.zeros((move_num, hgt_num))
+        stds = np.zeros((move_num, hgt_num))
         for move_index in range(move_num):
             for hgt_index in range(hgt_num):
                 params = []
@@ -741,11 +904,15 @@ class AdapDatabase:
                             params.append((move, hgt))
                 if self.adap_rate(params) is None:
                     adap_rate = 0
+                    std = 'NaN'
                 else:
                     adap_rate = self.adap_rate(params)[0][time_type][LD-1]
+                    std = self.adap_rate(params)[1][time_type][LD - 1]
                     if np.isnan(adap_rate):
                         adap_rate = 0
+                        std = 'NaN'
                 adap_rates[move_index][hgt_index] = adap_rate
+                stds[move_index][hgt_index] = std
         if min_max is None:
             max = adap_rates.max()
             if np.amin(adap_rates) == 0:
@@ -759,8 +926,8 @@ class AdapDatabase:
             if np.amin(adap_rates) == 0:
                 adap_rates = np.where(adap_rates == 0, min/2, adap_rates)
         # prepare colormap which has a red color for no adaptation rate
-        my_cmap = cm.get_cmap('viridis').copy()
-        my_cmap.set_under(color='red')
+        my_cmap = cm.get_cmap('magma').copy()
+        my_cmap.set_under(color='#d9d9d9')
         # make plot and add features
         adap_rates = np.transpose(adap_rates)
         im = ax.pcolormesh(move_axis, hgt_axis, adap_rates, cmap=my_cmap, norm=LogNorm(vmin=min, vmax=max))
@@ -790,7 +957,7 @@ class AdapDatabase:
         # set colorbar and labels
         if colorbar:
             cbar = fig.colorbar(im)
-            cbar.set_label("adaptation rate $a_2$ (1/h)", fontsize=12, rotation=90)
+            cbar.set_label("adaptation rate $a_R$ (1/h)", fontsize=12, rotation=90)
         if line:
             mov1=1e-5
             mov2=31.6
@@ -804,8 +971,8 @@ class AdapDatabase:
             ax.text(3.16e-4, 2e-4, "PHYSICAL\nSYSTEM", color="grey", fontsize=12)
         if labels:
             ax.set_xlabel("motility $\\nu$ (1/h)", fontsize=12)
-            ax.set_ylabel("HGT rate $\\mu_{HGT}$ (1/h)", fontsize=12)
-        return [min, max, im]
+            ax.set_ylabel("horizontal gene transfer h (1/h)", fontsize=12)
+        return [min, max, adap_rates, stds, im]
 
     # make the heatmap plot of adaptation rate of given time_type, LD
     # output: [min_adap_rate, max_adap_rate, im]
@@ -824,17 +991,22 @@ class AdapDatabase:
         sdeath_axis = np.transpose(sdeath_axis)
         # prepare adaptation rates, and find minimal non-zero and maximal adaptation rate
         adap_rates = np.zeros((move_num, sdeath_num))
+        stds = np.zeros((move_num, sdeath_num))
         for move_index in range(move_num):
             for sdeath_index in range(sdeath_num):
                 move = self.exp_type[0].move_params[move_index]
                 sdeath = self.exp_type[0].sdeath_params[sdeath_index]
                 if self.adap_rate((move, sdeath)) is None:
                     adap_rate = 0
+                    std = 'NaN'
                 else:
                     adap_rate = self.adap_rate((move, sdeath))[0][time_type][LD-1]
+                    std = self.adap_rate((move, sdeath))[1][time_type][LD - 1]
                     if np.isnan(adap_rate):
                         adap_rate = 0
+                        std = 'NaN'
                 adap_rates[move_index][sdeath_index] = adap_rate
+                stds[move_index][sdeath_index] = std
         if min_max is None:
             max = adap_rates.max()
             if np.amin(adap_rates) == 0:
@@ -848,8 +1020,8 @@ class AdapDatabase:
             if np.amin(adap_rates) == 0:
                 adap_rates = np.where(adap_rates == 0, min/2, adap_rates)
         # prepare colormap which has a red color for no adaptation rate
-        my_cmap = cm.get_cmap('viridis').copy()
-        my_cmap.set_under(color='red')
+        my_cmap = cm.get_cmap('magma').copy()
+        my_cmap.set_under(color='#d9d9d9')
         # make plot and add features
         adap_rates = np.transpose(adap_rates)
         im = ax.pcolormesh(move_axis, sdeath_axis, adap_rates, cmap=my_cmap, norm=LogNorm(vmin=min, vmax=max))
@@ -860,11 +1032,11 @@ class AdapDatabase:
         if colorbar:
             cbar = fig.colorbar(im)
             if labels:
-                cbar.set_label("adaptation rate $a_2$ (1/h)", fontsize=12, rotation=90)
+                cbar.set_label("adaptation rate $a_R$ (1/h)", fontsize=12, rotation=90)
         if labels:
             ax.set_xlabel("motility $\\nu$ (1/h)", fontsize=12)
             ax.set_ylabel("drug-induced death ratio $\\sigma$", fontsize=12)
-        return [min, max, im]
+        return [min, max, adap_rates, stds, im]
 
     # make the heatmap plot of adaptation rate of given time_type, LD, and switch parameter
     # output: [min_adap_rate, max_adap_rate, im]
@@ -880,6 +1052,7 @@ class AdapDatabase:
         move1_axis = np.transpose(move1_axis)
         # prepare adaptation rates, and find minimal non-zero and maximal adaptation rate
         adap_rates = np.zeros((move_num, move_num))
+        stds = np.zeros((move_num, move_num))
         for move0_index in range(move_num):
             for move1_index in range(move_num):
                 move0 = self.exp_type[0].move_params[move0_index]
@@ -887,19 +1060,27 @@ class AdapDatabase:
                 if move0 < move1:
                     if self.adap_rate((move1, move0, switch_param)) is None:
                         adap_rate = 0
+                        std = 'NaN'
                     else:
                         adap_rate = self.adap_rate((move1, move0, switch_param))[0][time_type][LD-1]
+                        std = self.adap_rate((move1, move0, switch_param))[1][time_type][LD - 1]
                         if np.isnan(adap_rate):
                             adap_rate = 0
+                            std = 'NaN'
                     adap_rates[move0_index][move1_index] = adap_rate
+                    stds[move0_index][move1_index] = std
                 else:
                     if self.adap_rate((move0, move1, switch_param)) is None:
                         adap_rate = 0
+                        std = 'NaN'
                     else:
                         adap_rate = self.adap_rate((move0, move1, switch_param))[0][time_type][LD - 1]
+                        std = self.adap_rate((move0, move1, switch_param))[1][time_type][LD - 1]
                         if np.isnan(adap_rate):
                             adap_rate = 0
+                            std = 'NaN'
                     adap_rates[move0_index][move1_index] = adap_rate
+                    stds[move0_index][move1_index] = std
         if min_max is None:
             max = adap_rates.max()
             if np.amin(adap_rates) == 0:
@@ -913,8 +1094,8 @@ class AdapDatabase:
             if np.amin(adap_rates) == 0:
                 adap_rates = np.where(adap_rates == 0, min/2, adap_rates)
         # prepare colormap which has a red color for no adaptation rate
-        my_cmap = cm.get_cmap('viridis').copy()
-        my_cmap.set_under(color='red')
+        my_cmap = cm.get_cmap('magma').copy()
+        my_cmap.set_under(color='#d9d9d9')
         # make plot and add features
         im = ax.pcolormesh(move0_axis, move1_axis, adap_rates, cmap=my_cmap, norm=LogNorm(vmin=min, vmax=max))
         ax.set_xscale("log")
@@ -941,17 +1122,17 @@ class AdapDatabase:
         if colorbar:
             cbar = fig.colorbar(im)
             if labels:
-                cbar.set_label("adaptation rate $a_2$ (1/h)", fontsize=12, rotation=90)
+                cbar.set_label("adaptation rate $a_R$ (1/h)", fontsize=12, rotation=90)
         if labels:
             ax.set_xlabel("motility $\\nu_1$ (1/h)", fontsize=12)
             ax.set_ylabel("motility $\\nu_2$ (1/h)", fontsize=12)
             ax.set_title("switching rate $s=$"+str(switch_param))
-        return [min, max, im]
+        return [min, max, adap_rates, stds, im]
 
     # make the heatmap plot of adaptation rate of given time_type, LD, and switch_dens parameter, death parameter (must match existing param)
     # output: [min_adap_rate, max_adap_rate, im]
     # input: dens_param, switch_dens, time_type (0=T, 1=D), LD, fig, ax, min_max, colorbar (True/False), labels(True,False)
-    # note: assume all input data are of the same DensSwitchA experiment
+    # note: assume all input data are of the same DensSwitchA experiment or the same DensMotSwitchA or DensMotSwitchB experiment
     def dens_switch_heatmap(self, death, dens_switch, LD, time_type, fig, ax, min_max, colorbar, labels):
         # prepare x, y axes
         move_num = len(self.exp_type[0].move_params)
@@ -962,17 +1143,22 @@ class AdapDatabase:
         move1_axis = np.transpose(move1_axis)
         # prepare adaptation rates, and find minimal non-zero and maximal adaptation rate
         adap_rates = np.zeros((move_num, move_num))
+        stds = np.zeros((move_num, move_num))
         for move0_index in range(move_num):
             for move1_index in range(move_num):
                 move0 = self.exp_type[0].move_params[move0_index]
                 move1 = self.exp_type[0].move_params[move1_index]
                 if self.adap_rate((death, dens_switch, move0, move1)) is None:
                     adap_rate = 0
+                    std = 'NaN'
                 else:
                     adap_rate = self.adap_rate((death, dens_switch, move0, move1))[0][time_type][LD - 1]
+                    std = self.adap_rate((death, dens_switch, move0, move1))[1][time_type][LD - 1]
                     if np.isnan(adap_rate):
                         adap_rate = 0
+                        std = 'NaN'
                 adap_rates[move1_index][move0_index] = adap_rate
+                stds[move1_index][move0_index] = std
         if min_max is None:
             max = adap_rates.max()
             if np.amin(adap_rates) == 0:
@@ -986,8 +1172,8 @@ class AdapDatabase:
             if np.amin(adap_rates) == 0:
                 adap_rates = np.where(adap_rates == 0, min / 2, adap_rates)
         # prepare colormap which has a red color for no adaptation rate
-        my_cmap = cm.get_cmap('viridis').copy()
-        my_cmap.set_under(color='red')
+        my_cmap = cm.get_cmap('magma').copy()
+        my_cmap.set_under(color='#d9d9d9')
         # make plot and add features
         im = ax.pcolormesh(move0_axis, move1_axis, adap_rates, cmap=my_cmap, norm=LogNorm(vmin=min, vmax=max))
         ax.set_xscale("log")
@@ -1002,12 +1188,12 @@ class AdapDatabase:
         if colorbar:
             cbar = fig.colorbar(im)
             if labels:
-                cbar.set_label("adaptation rate $a_2$ (1/h)", fontsize=12, rotation=90)
+                cbar.set_label("adaptation rate $a_R$ (1/h)", fontsize=12, rotation=90)
         if labels:
-            ax.set_xlabel("motility $\\nu_1$ (1/h)", fontsize=12)
-            ax.set_ylabel("motility $\\nu_2$ (1/h)", fontsize=12)
+            ax.set_xlabel("motility $\\nu_L$ (1/h)", fontsize=12)
+            ax.set_ylabel("motility $\\nu_H$ (1/h)", fontsize=12)
             ax.set_title("switching threshold $S=$" + str(dens_switch))
-        return [min, max, im]
+        return [min, max, adap_rates, stds, im]
 
     # swarm adap plot
     # output: []
@@ -1105,7 +1291,7 @@ class AdapDatabase:
         # plot the labels
         if labels:
             ax.set_xlabel("motility $\\nu$ (1/h)")
-            ax.set_ylabel("adaptation rates $a_2$, $a_S$ (1/h)")
+            ax.set_ylabel("adaptation rates $a_R$, $a_S$ (1/h)")
 
     # make the heatmap plot of adaptation rate of given time_type, LD, and swarm parameter
     # output: [min_adap_rate, max_adap_rate, im]
@@ -1148,8 +1334,8 @@ class AdapDatabase:
             if np.amin(adap_rates) == 0:
                 adap_rates = np.where(adap_rates == 0, min/2, adap_rates)
         # prepare colormap which has a red color for no adaptation rate
-        my_cmap = cm.get_cmap('viridis').copy()
-        my_cmap.set_under(color='red')
+        my_cmap = cm.get_cmap('magma').copy()
+        my_cmap.set_under(color='#d9d9d9')
         # make plot and add features
         im = ax.pcolormesh(move_axis, density_axis, adap_rates, cmap=my_cmap, norm=LogNorm(vmin=min, vmax=max))
         ax.set_xscale("log")
@@ -1163,7 +1349,7 @@ class AdapDatabase:
                 if time_type == 2:
                     cbar.set_label("swarming rate $a_S$ (1/h)", fontsize=12, rotation=90)
                 else:
-                    cbar.set_label("adaptation rate $a_2$ (1/h)", fontsize=12, rotation=90)
+                    cbar.set_label("adaptation rate $a_R$ (1/h)", fontsize=12, rotation=90)
         if labels:
             ax.set_xlabel("swarming motility $\\nu_S$ (1/h)", fontsize=12)
             ax.set_ylabel("swarming density $K_S$", fontsize=12)
@@ -1188,8 +1374,8 @@ class AdapDatabase:
                 swarm_tol[dense_index][move_index] = self.swarm_tolerance((move, dense, death), pop)[0][LD-1]
         print(swarm_tol)
         # prepare colormap which has a red color for no adaptation rate
-        my_cmap = cm.get_cmap('viridis').copy()
-        my_cmap.set_under(color='red')
+        my_cmap = cm.get_cmap('magma').copy()
+        my_cmap.set_under(color='#d9d9d9')
         # make plot and add features
         im = ax.pcolormesh(move_axis, density_axis, swarm_tol, cmap=my_cmap, vmin=0, vmax=self.exp_type[0].GridBound-1)
         ax.set_xscale("log")
@@ -1313,7 +1499,7 @@ class AdapDatabase:
         # plot the labels
         if labels:
             ax.set_xlabel("motility $\\nu$ (1/h)")
-            ax.set_ylabel("adaptation $a_2$ (1/h)")
+            ax.set_ylabel("adaptation rate $a_R$ (1/h)")
         # make and plot the analytics
         if analytics[0]:
             point_num = analytics[1]
@@ -1423,7 +1609,7 @@ class AdapDatabase:
                 ax.set_xlabel("birth under stress $r_S$ (1/h)")
             elif type == 2 or type == 3:
                 ax.set_xlabel("stress-induced death $\\delta_S$ (1/h)")
-            ax.set_ylabel("adaptation $a_2$ (1/h)")
+            ax.set_ylabel("adaptation rate $a_R$ (1/h)")
         ax.legend(loc='lower left')
         # analytics
         if analytics[0]:
@@ -1509,6 +1695,38 @@ class AdapDatabase:
         else:
             return None
 
+    # calculate abs_gen_tot from gen_space_tot
+    def abs_gen_tot(self, gen_space_tot, sim_id):
+        gen_tot = np.zeros(self.exp_type[sim_id].GenBound)
+        for pop in range(self.exp_type[sim_id].PopulationNumber):
+            for gen in range(self.exp_type[sim_id].GenBound):
+                for pos in range(self.exp_type[sim_id].GridBound):
+                    gen_tot[gen] += gen_space_tot[pop][gen][pos]
+        return gen_tot
+
+    # sum over populations, [pos][gen]
+    def space_gen_tot(self, gen_space_tot, sim_id):
+        space_gen_tot = np.zeros((self.exp_type[sim_id].GridBound, self.exp_type[sim_id].GenBound))
+        for pop in range(self.exp_type[sim_id].PopulationNumber):
+            for gen in range(self.exp_type[sim_id].GenBound):
+                for pos in range(self.exp_type[sim_id].GridBound):
+                    space_gen_tot[pos][gen] += gen_space_tot[pop][gen][pos]
+        return space_gen_tot
+
+    # finds the resistance number LD (=R) for a given GenSpaceTot
+    def LD(self, gen_space_tot, sim_id):
+        pos = self.exp_type[sim_id].GridBound - 1
+        space_gen_tot = self.space_gen_tot(gen_space_tot, sim_id)
+        while pos >= 0:
+            if pos == np.argmax(space_gen_tot[pos]):
+                break
+            pos -= 1
+        if pos == -1:
+            LD = np.argmax(self.abs_gen_tot(gen_space_tot, sim_id)) + 1
+        else:
+            LD = pos+1
+        return LD
+
     # plots the stable wild-type plot into given axis, colors indicate relative abundance
     # input: params, run_index(=0,...,repeat), ax(axes to plot to), labels(=true,false)
     #        sim_id, evol_pop (just evolved), show_r_net, LD, time_type(='T','D'), ax, labels, analytics
@@ -1519,6 +1737,8 @@ class AdapDatabase:
             [Time,GenSpaceTot] = [np.inf, np.zeros((self.exp_type[sim_id].PopulationNumber, self.exp_type[sim_id].GridBound, self.exp_type[sim_id].GridBound))]
         else:
             [Time, GenSpaceTot] = self.read_gen_space_tot(sim_id, task_id, evol_pop, LD, time_type)
+        if time_type == 2:
+            LD = self.LD(GenSpaceTot, sim_id)
         ## LD = 1
         # make stable wild-type plot
         # colors of increasing shade [blue, yellow, green, orange], can later add: purple, grey from https://htmlcolorcodes.com/
@@ -1576,6 +1796,8 @@ class AdapDatabase:
             for plot_pop in range(self.exp_type[sim_id].PopulationNumber):
                 color = plot_pop
                 plot_pop = self.exp_type[sim_id].PopulationNumber - 1 - plot_pop
+                if self.exp_type[sim_id].ConsiderDensSwitch[0] and params[2] < params[3]:
+                    plot_pop = self.exp_type[sim_id].PopulationNumber - 1 - plot_pop
                 for g in range(self.exp_type[sim_id].GenBound):
                     g = self.exp_type[sim_id].GenBound - 1 - g
                     N_sim = np.zeros(self.exp_type[sim_id].GridBound)
@@ -1593,37 +1815,45 @@ class AdapDatabase:
                             ax.plot([k + 1 for k in range(self.exp_type[sim_id].GridBound)],  N_sim, linestyle='--', color='black')
                     else:
                         ax.fill_between([k + 1 for k in range(self.exp_type[sim_id].GridBound)], N_sim, color=colors[color][g], label='')
-
         # prepare data for r_net plot
         if show_r_net:
             plot_pop = 0    # assumes identical birth and death rates for all populations
             r_net = np.zeros(self.exp_type[sim_id].GridBound)
             N_tot = np.zeros(self.exp_type[sim_id].GridBound)
+            N_tot_below = np.zeros(self.exp_type[sim_id].GridBound)
+            if isinstance(self.exp_type[sim_id],CompBelowStairA):
+                death = [params[0]]
+                comp = [params[1]]
+            else:
+                death = self.exp_type[sim_id].DeathRate
+                comp = self.exp_type[sim_id].CompetBelowStairs
             for pos in range(self.exp_type[sim_id].GridBound):
                 for pop in range(self.exp_type[sim_id].PopulationNumber):
                     for gen in range(self.exp_type[sim_id].GenBound):
                         N_tot[pos] += GenSpaceTot[pop][gen][pos]
+                        if gen < pos:
+                            N_tot_below[pos]+= GenSpaceTot[pop][gen][pos]
                 if pos < LD:
-                    r_net[pos] = self.exp_type[sim_id].BirthRate[plot_pop]*(1-N_tot[pos]/self.exp_type[sim_id].CarryingCapacity)-self.exp_type[sim_id].DeathRate[plot_pop]
+                    r_net[pos] = self.exp_type[sim_id].BirthRate[plot_pop]*(1-(N_tot[pos]+(comp[pop]-1)*N_tot_below[pop])/self.exp_type[sim_id].CarryingCapacity)-death[plot_pop]
                 elif pos < LD+1:
-                    r_net[pos] = (self.exp_type[sim_id].BirthRate[plot_pop]+self.exp_type[sim_id].StressBirthRate[plot_pop]) * (1 - N_tot[pos] / self.exp_type[sim_id].CarryingCapacity) - (self.exp_type[sim_id].DeathRate[plot_pop]+self.exp_type[sim_id].StressDeathRate[plot_pop])
+                    r_net[pos] = (self.exp_type[sim_id].BirthRate[plot_pop]+self.exp_type[sim_id].StressBirthRate[plot_pop]) * (1 - N_tot[pos] / self.exp_type[sim_id].CarryingCapacity) - (death[plot_pop]+self.exp_type[sim_id].StressDeathRate[plot_pop])
                 else:
-                    r_net[pos] = - (self.exp_type[sim_id].DeathRate[plot_pop]+self.exp_type[sim_id].StressDeathRate[plot_pop])
+                    r_net[pos] = - (death[plot_pop]+self.exp_type[sim_id].StressDeathRate[plot_pop])
             # make the plot
             ax2 = ax.twinx()
             ax2.bar([k + 1 for k in range(self.exp_type[sim_id].GridBound)], r_net, color='tab:red')
             ax2.tick_params(axis='y', labelcolor='tab:red')
-            ax2.set_ylim([-1.5 * self.exp_type[sim_id].DeathRate[plot_pop], self.exp_type[sim_id].BirthRate[plot_pop]-self.exp_type[sim_id].DeathRate[plot_pop]/2])
+            ax2.set_ylim([-1.5 * death[plot_pop], self.exp_type[sim_id].BirthRate[plot_pop]-death[plot_pop]/2])
             ax2.set_yticks([])
             # make labels
             if r_labels:
-                ax2.set_ylabel('mutant net birth rate', color='tab:red', fontsize=12)
+                ax2.set_ylabel('mutant fitness', color='tab:red', fontsize=12)
                 ax2.tick_params(axis='y', labelcolor='tab:red')
-                yticks = [-self.exp_type[sim_id].DeathRate[plot_pop], 0, self.exp_type[sim_id].DeathRate[plot_pop]]
+                yticks = [-death[plot_pop], 0, death[plot_pop]]
                 ylabels = ['$-\delta$', '$0$', '$\delta$']
-                for i in range(int((self.exp_type[sim_id].BirthRate[plot_pop]-self.exp_type[sim_id].DeathRate[plot_pop]/2)/self.exp_type[sim_id].DeathRate[plot_pop])):
+                for i in range(int((self.exp_type[sim_id].BirthRate[plot_pop]-death[plot_pop]/2)/death[plot_pop])):
                     if i > 0:
-                        yticks.append((i + 1) * self.exp_type[sim_id].DeathRate[plot_pop])
+                        yticks.append((i + 1) * death[plot_pop])
                         ylabels.append(str(i + 1) + "$\\delta$")
                 ax2.set_yticks(yticks)
                 ax2.set_yticklabels(ylabels, fontsize=12)
@@ -1648,6 +1878,7 @@ class AdapDatabase:
             ax.set_yticks([])
         if x_labels:
             ax.set_xlabel('space x', fontsize=12)
+        return GenSpaceTot
 
 
 ###
@@ -1689,6 +1920,11 @@ class MotSwitchA:
     SwarmingMove = [1, 1]
     ConsiderHGT = [False, False]
     HGTRate = [0, 0]
+    CompetBelowStairs = [1, 1]
+    ConsiderDensSwitch = [False, False]
+    DensSwitchBias = [0.5, 0.5]
+    DensSwitchTot = [0, 0]
+    DensSwitchDens = [5E4, 5E4]
 
     # Find name_ID from task_ID
     def taskIDtoID(self, task_id):
@@ -1785,6 +2021,11 @@ class ChemotaxA:
     SwarmingMove = [1]
     ConsiderHGT = [False]
     HGTRate = [0]
+    CompetBelowStairs = [1]
+    ConsiderDensSwitch = [False]
+    DensSwitchBias = [0.5]
+    DensSwitchTot = [0]
+    DensSwitchDens = [5E4]
 
     # Find name_ID from task_ID
     def taskIDtoID(self, task_id):
@@ -1839,6 +2080,7 @@ class StandardA:
     ResistCost = [0]
     death_params = [1e-1, 3e-1]
     death_names = ["1E1", "3E1"]
+    DeathRate = [1e-1]
     StressDeathRate = [0]
     MuteUp = [1e-7]
     MuteDown = [1e-4]
@@ -1856,6 +2098,11 @@ class StandardA:
     SwarmingMove = [1]
     ConsiderHGT = [False]
     HGTRate = [0]
+    CompetBelowStairs = [1]
+    ConsiderDensSwitch = [False]
+    DensSwitchBias = [0.5]
+    DensSwitchTot = [0]
+    DensSwitchDens = [5E4]
 
     # Find name_ID from task_ID
     def taskIDtoID(self, task_id):
@@ -1928,6 +2175,11 @@ class SpecialA:
     special_names = ["RC1E2", "SB1E2", "SD1E1"]
     ConsiderHGT = [False]
     HGTRate = [0]
+    CompetBelowStairs = [1]
+    ConsiderDensSwitch = [False]
+    DensSwitchBias = [0.5]
+    DensSwitchTot = [0]
+    DensSwitchDens = [5E4]
 
     # Find name_ID from task_ID
     def taskIDtoID(self, task_id):
@@ -2003,6 +2255,11 @@ class ResistCostA:
     SwarmingMove = [1]
     ConsiderHGT = [False]
     HGTRate = [0]
+    CompetBelowStairs = [1]
+    ConsiderDensSwitch = [False]
+    DensSwitchBias = [0.5]
+    DensSwitchTot = [0]
+    DensSwitchDens = [5E4]
 
     # Find name_ID from task_ID
     def taskIDtoID(self, task_id):
@@ -2074,6 +2331,11 @@ class StressBirthA:
     SwarmingMove = [1]
     ConsiderHGT = [False]
     HGTRate = [0]
+    CompetBelowStairs = [1]
+    ConsiderDensSwitch = [False]
+    DensSwitchBias = [0.5]
+    DensSwitchTot = [0]
+    DensSwitchDens = [5E4]
 
     # Find name_ID from task_ID
     def taskIDtoID(self, task_id):
@@ -2145,6 +2407,11 @@ class StressDeathA:
     SwarmingMove = [1]
     ConsiderHGT = [False]
     HGTRate = [0]
+    CompetBelowStairs = [1]
+    ConsiderDensSwitch = [False]
+    DensSwitchBias = [0.5]
+    DensSwitchTot = [0]
+    DensSwitchDens = [5E4]
 
     # Find name_ID from task_ID
     def taskIDtoID(self, task_id):
@@ -2217,6 +2484,11 @@ class SpecialB:
     special_names = ["RC1E2", "SB1E2", "SB1_SD10"]
     ConsiderHGT = [False]
     HGTRate = [0]
+    CompetBelowStairs = [1]
+    ConsiderDensSwitch = [False]
+    DensSwitchBias = [0.5]
+    DensSwitchTot = [0]
+    DensSwitchDens = [5E4]
 
     # Find name_ID from task_ID
     def taskIDtoID(self, task_id):
@@ -2293,6 +2565,11 @@ class ResistCostB:
     SwarmingMove = [1]
     ConsiderHGT = [False]
     HGTRate = [0]
+    CompetBelowStairs = [1]
+    ConsiderDensSwitch = [False]
+    DensSwitchBias = [0.5]
+    DensSwitchTot = [0]
+    DensSwitchDens = [5E4]
 
     # Find name_ID from task_ID
     def taskIDtoID(self, task_id):
@@ -2364,6 +2641,11 @@ class StressBirthDeathA:
     SwarmingMove = [1]
     ConsiderHGT = [False]
     HGTRate = [0]
+    CompetBelowStairs = [1]
+    ConsiderDensSwitch = [False]
+    DensSwitchBias = [0.5]
+    DensSwitchTot = [0]
+    DensSwitchDens = [5E4]
 
     # Find name_ID from task_ID
     def taskIDtoID(self, task_id):
@@ -2436,6 +2718,11 @@ class StressDeathB:
     SwarmingMove = [1]
     ConsiderHGT = [False]
     HGTRate = [0]
+    CompetBelowStairs = [1]
+    ConsiderDensSwitch = [False]
+    DensSwitchBias = [0.5]
+    DensSwitchTot = [0]
+    DensSwitchDens = [5E4]
 
     # Find name_ID from task_ID
     def taskIDtoID(self, task_id):
@@ -2506,6 +2793,11 @@ class SwitchA:
     SwarmingMove = [1, 1]
     ConsiderHGT = [False, False]
     HGTRate = [0, 0]
+    CompetBelowStairs = [1, 1]
+    ConsiderDensSwitch = [False, False]
+    DensSwitchBias = [0.5, 0.5]
+    DensSwitchTot = [0, 0]
+    DensSwitchDens = [5E4, 5E4]
 
     # Find name_ID from task_ID
     def taskIDtoID(self, task_id):
@@ -2581,6 +2873,11 @@ class MotSwitchDeadlyA:
     SwarmingMove = [1, 1]
     ConsiderHGT = [False, False]
     HGTRate = [0, 0]
+    CompetBelowStairs = [1, 1]
+    ConsiderDensSwitch = [False, False]
+    DensSwitchBias = [0.5, 0.5]
+    DensSwitchTot = [0, 0]
+    DensSwitchDens = [5E4, 5E4]
 
     # Find name_ID from task_ID
     def taskIDtoID(self, task_id):
@@ -2679,6 +2976,11 @@ class SwarmLagA:
     SwarmingDensity = [5e4]
     ConsiderHGT = [False]
     HGTRate = [0]
+    CompetBelowStairs = [1]
+    ConsiderDensSwitch = [False]
+    DensSwitchBias = [0.5]
+    DensSwitchTot = [0]
+    DensSwitchDens = [5E4]
 
     # Find name_ID from task_ID
     def taskIDtoID(self, task_id):
@@ -2752,6 +3054,11 @@ class SwarmDeadlyA:
     swarm_move_names = ["3E3", "1E2", "3E2", "1E1", "3E1", "1", "3", "10"]
     ConsiderHGT = [False]
     HGTRate = [0]
+    CompetBelowStairs = [1]
+    ConsiderDensSwitch = [False]
+    DensSwitchBias = [0.5]
+    DensSwitchTot = [0]
+    DensSwitchDens = [5E4]
 
     # Find name_ID from task_ID
     def taskIDtoID(self, task_id):
@@ -2831,6 +3138,11 @@ class HGTA:
     ConsiderHGT = [True]
     hgt_params = [1e-7, 3.16e-7, 1e-6, 3.16e-6, 1e-5, 3.16e-5, 1e-4, 3.16e-4, 1e-3]
     hgt_names = ["1E7", "3E7", "1E6", "3E6", "1E5", "3E5", "1E4", "3E4", "1E3"]
+    CompetBelowStairs = [1]
+    ConsiderDensSwitch = [False]
+    DensSwitchBias = [0.5]
+    DensSwitchTot = [0]
+    DensSwitchDens = [5E4]
 
     # Find name_ID from task_ID
     def taskIDtoID(self, task_id):
@@ -2903,6 +3215,11 @@ class HGTDeadlyA:
     ConsiderHGT = [True]
     hgt_params = [1e-7, 3.16e-7, 1e-6, 3.16e-6, 1e-5, 3.16e-5, 1e-4, 3.16e-4, 1e-3]
     hgt_names = ["1E7", "3E7", "1E6", "3E6", "1E5", "3E5", "1E4", "3E4", "1E3"]
+    CompetBelowStairs = [1]
+    ConsiderDensSwitch = [False]
+    DensSwitchBias = [0.5]
+    DensSwitchTot = [0]
+    DensSwitchDens = [5E4]
 
     # Find name_ID from task_ID
     def taskIDtoID(self, task_id):
@@ -2977,6 +3294,11 @@ class DensSwitchA:
     switch_density_names = ["1E2", "1E3", "1E4", "3E4", "9E4"]
     ConsiderHGT = [False]
     HGTRate = [0]
+    CompetBelowStairs = [1]
+    ConsiderDensSwitch = [False]
+    DensSwitchBias = [0.5]
+    DensSwitchTot = [0]
+    DensSwitchDens = [5E4]
 
     # Find name_ID from task_ID
     def taskIDtoID(self, task_id):
@@ -3061,6 +3383,11 @@ class ResCostA:
     SwarmingMove = [1]
     ConsiderHGT = [False]
     HGTRate = [0]
+    CompetBelowStairs = [1]
+    ConsiderDensSwitch = [False]
+    DensSwitchBias = [0.5]
+    DensSwitchTot = [0]
+    DensSwitchDens = [5E4]
 
     # Find name_ID from task_ID
     def taskIDtoID(self, task_id):
@@ -3133,6 +3460,11 @@ class ResCostDeadlyA:
     SwarmingMove = [1]
     ConsiderHGT = [False]
     HGTRate = [0]
+    CompetBelowStairs = [1]
+    ConsiderDensSwitch = [False]
+    DensSwitchBias = [0.5]
+    DensSwitchTot = [0]
+    DensSwitchDens = [5E4]
 
     # Find name_ID from task_ID
     def taskIDtoID(self, task_id):
@@ -3167,4 +3499,364 @@ class ResCostDeadlyA:
         p_prop[0].DeathRate = self.DeathRate[0]
         l_prop = sc.LatProp()
         l_prop.LD = LD
+        return sc.Staircase(l_prop, p_prop)
+
+
+class MutA:
+    repeat = 10
+    adap_num = 7
+    # save lattice data
+    D = 1
+    CarryingCapacity = 1e5
+    GenBound = 8
+    GridBound = 8
+    PopulationNumber = 1
+    # save population data
+    InitCellsNum = [1e2]
+    InitCellsGen = [0]
+    InitCellsPos = [0]
+    BirthRate = [1]
+    StressBirthRate = [0]
+    ResistCost = [0]
+    death_params = [1e-1, 3e-1]
+    death_names = ["1E1", "3E1"]
+    StressDeathRate = [0]
+    mut_params = [1E-7, 3.16E-7, 1E-6, 3.16E-6, 1E-5, 3.16E-5, 1E-4, 3.16E-4, 1E-3]
+    mut_names = ["1E7", "3E7", "1E6", "3E6", "1E5", "3E5", "1E4", "3E4", "1E3"]
+    MuteDown = [1e-4]
+    StressMuteUp = [0]
+    StressMuteDown = [0]
+    move_params = [1e-5, 3.16e-5, 1e-4, 3.16e-4, 1e-3, 3.16e-3, 1e-2, 3.16e-2, 1e-1, 3.16e-1, 1, 3.16, 10]
+    move_names = ["1E5", "3E5", "1E4", "3E4", "1E3", "3E3", "1E2", "3E2", "1E1", "3E1", "1", "3", "10"]
+    Chemotax = [0.5]
+    StressDepChemotax = [False]
+    Chemokin = [0]
+    SwitchUp = [0]
+    SwitchDown = [0]
+    ConsiderSwarm = [False]
+    SwarmingDensity = [5e4]
+    SwarmingMove = [1]
+    ConsiderHGT = [False]
+    HGTRate = [0]
+    CompetBelowStairs = [1]
+    ConsiderDensSwitch = [False]
+    DensSwitchBias = [0.5]
+    DensSwitchTot = [0]
+    DensSwitchDens = [5E4]
+
+    # Find name_ID from task_ID
+    def taskIDtoID(self, task_id):
+        mov_num = len(self.move_params)
+        mut_num = len(self.mut_params)
+        death_index = int(task_id / (self.repeat * mov_num * mut_num))
+        mut_index = int(int(task_id % (mov_num * mut_num)) / mov_num)
+        move_index = int(int(task_id % (mov_num * mut_num)) % mov_num)
+        id = "M"+self.move_names[move_index]+"_MT"+self.mut_names[mut_index]+"_D"+self.death_names[death_index]
+        return id
+
+    # Find taskID from params and run_index(=0,...,repeat)
+    def IDtoTaskID(self, params, run_index):
+        mov_num = len(self.move_params)
+        mut_num = len(self.mut_params)
+        death_index = self.death_params.index(params[0])
+        mut_index = self.mut_params.index(params[1])
+        move_index = self.move_params.index(params[2])
+        task_id = death_index*self.repeat*mov_num*mut_num + run_index*mov_num*mut_num + mut_index*mov_num + move_index
+        return task_id
+
+    # Find params from task_ID
+    def taskIDtoParams(self, task_id):
+        mov_num = len(self.move_params)
+        mut_num = len(self.mut_params)
+        death_index = int(task_id / (self.repeat * mov_num * mut_num))
+        mut_index = int(int(task_id % (mov_num * mut_num)) / mov_num)
+        move_index = int(int(task_id % (mov_num * mut_num)) % mov_num)
+        params = (self.death_params[death_index], self.mut_params[mut_index], self.move_params[move_index])
+        run_index = int(int(task_id / (mov_num*mut_num)) % self.repeat)
+        return [params, run_index]
+
+    # make staircase object
+    def make_staircase(self, params, LD):
+        p_prop = [sc.PopProp()]
+        p_prop[0].MuteUp = params[1]
+        p_prop[0].Move = params[2]
+        p_prop[0].DeathRate = params[0]
+        l_prop = sc.LatProp()
+        l_prop.LD = LD
+        return sc.Staircase(l_prop, p_prop)
+
+
+class CompBelowStairA:
+    repeat = 10
+    adap_num = 7
+    # save lattice data
+    D = 1
+    CarryingCapacity = 1e5
+    GenBound = 8
+    GridBound = 8
+    PopulationNumber = 1
+    # save population data
+    InitCellsNum = [1e2]
+    InitCellsGen = [0]
+    InitCellsPos = [0]
+    BirthRate = [1]
+    StressBirthRate = [0]
+    ResistCost = [0]
+    death_params = [1e-1, 3e-1]
+    death_names = ["1E1", "3E1"]
+    StressDeathRate = [0]
+    MuteUp = [1e-7]
+    MuteDown = [1e-4]
+    StressMuteUp = [0]
+    StressMuteDown = [0]
+    move_params = [1e-5, 3.16e-5, 1e-4, 3.16e-4, 1e-3, 3.16e-3, 1e-2, 3.16e-2, 1e-1, 3.16e-1, 1, 3.16, 10]
+    move_names = ["1E5", "3E5", "1E4", "3E4", "1E3", "3E3", "1E2", "3E2", "1E1", "3E1", "1", "3", "10"]
+    Chemotax = [0.5]
+    StressDepChemotax = [False]
+    Chemokin = [0]
+    SwitchUp = [0]
+    SwitchDown = [0]
+    ConsiderSwarm = [False]
+    SwarmingDensity = [5e4]
+    SwarmingMove = [1]
+    ConsiderHGT = [False]
+    HGTRate = [0]
+    comp_params = [0, 1E-1, 2E-1, 3E-1, 4E-1, 5E-1, 6E-1, 7E-1, 8E-1, 9E-1,1]
+    comp_names = ["0", "1E1", "2E1", "3E1", "4E1", "5E1", "6E1", "7E1", "8E1", "9E1", "1"]
+    ConsiderDensSwitch = [False]
+    DensSwitchBias = [0.5]
+    DensSwitchTot = [0]
+    DensSwitchDens = [5E4]
+
+    # Find name_ID from task_ID
+    def taskIDtoID(self, task_id):
+        mov_num = len(self.move_params)
+        comp_num = len(self.comp_params)
+        death_index = int(task_id / (self.repeat * mov_num * comp_num))
+        comp_index = int(int(task_id % (mov_num * comp_num)) / mov_num)
+        move_index = int(int(task_id % (mov_num * comp_num)) % mov_num)
+        id = "M"+self.move_names[move_index]+"_MT"+self.comp_names[comp_index]+"_D"+self.death_names[death_index]
+        return id
+
+    # Find taskID from params and run_index(=0,...,repeat)
+    def IDtoTaskID(self, params, run_index):
+        mov_num = len(self.move_params)
+        comp_num = len(self.comp_params)
+        death_index = self.death_params.index(params[0])
+        comp_index = self.comp_params.index(params[1])
+        move_index = self.move_params.index(params[2])
+        task_id = death_index*self.repeat*mov_num*comp_num + run_index*mov_num*comp_num + comp_index*mov_num + move_index
+        return task_id
+
+    # Find params from task_ID
+    def taskIDtoParams(self, task_id):
+        mov_num = len(self.move_params)
+        comp_num = len(self.comp_params)
+        death_index = int(task_id / (self.repeat * mov_num * comp_num))
+        comp_index = int(int(task_id % (mov_num * comp_num)) / mov_num)
+        move_index = int(int(task_id % (mov_num * comp_num)) % mov_num)
+        params = (self.death_params[death_index], self.comp_params[comp_index], self.move_params[move_index])
+        run_index = int(int(task_id / (mov_num*comp_num)) % self.repeat)
+        return [params, run_index]
+
+    # make staircase object
+    def make_staircase(self, params, LD):
+        p_prop = [sc.PopProp()]
+        p_prop[0].CompetBelowStairs = params[1]
+        p_prop[0].Move = params[2]
+        p_prop[0].DeathRate = params[0]
+        l_prop = sc.LatProp()
+        l_prop.LD = LD
+        return sc.Staircase(l_prop, p_prop)
+
+
+class DensMotSwitchA:
+    repeat = 10
+    adap_num = 7
+    # save lattice data
+    D = 1
+    CarryingCapacity = 1e5
+    GenBound = 8
+    GridBound = 8
+    PopulationNumber = 2
+    # save population data
+    InitCellsNum = [50, 50]
+    InitCellsGen = [0, 0]
+    InitCellsPos = [0, 0]
+    BirthRate = [1, 1]
+    StressBirthRate = [0, 0]
+    ResistCost = [0, 0]
+    death_params = [1e-1, 3e-1]
+    death_names = ["1E1", "3E1"]
+    StressDeathRate = [0, 0]
+    MuteUp = [1e-7, 1e-7]
+    MuteDown = [1e-4, 1e-4]
+    StressMuteUp = [0, 0]
+    StressMuteDown = [0, 0]
+    move_params = [1e-5, 3.16e-5, 1e-4, 3.16e-4, 1e-3, 3.16e-3, 1e-2, 3.16e-2, 1e-1, 3.16e-1, 1, 3.16, 10]
+    move_names = ["1E5", "3E5", "1E4", "3E4", "1E3", "3E3", "1E2", "3E2", "1E1", "3E1", "1", "3", "10"]
+    Chemotax = [0.5, 0.5]
+    StressDepChemotax = [False, False]
+    Chemokin = [0, 0]
+    SwitchUp = [0, 0]
+    SwitchDown = [0, 0]
+    ConsiderSwarm = [False, False]
+    SwarmingDens = [5e4, 5e4]
+    SwarmingMove = [1, 1]
+    ConsiderHGT = [False, False]
+    HGTRate = [0, 0]
+    CompetBelowStairs = [1, 1]
+    ConsiderDensSwitch = [True, True]
+    switch_bias_index = 1
+    switch_bias_params = [0,1e-3/(1+1e-3),1e-2/(1+1e-2),1e-1/(1+1e-1)]
+    switch_bias_names = ["0", "1E3", "1E2", "1E1"]
+    DensSwitchTot = [1, 1]
+    switch_density_params = [1E2, 9.5E4]
+    switch_density_names = ["1E2", "9E4"]
+
+    # Find name_ID from task_ID
+    def taskIDtoID(self, task_id):
+        dense_num = len(self.switch_density_params)
+        move_num = len(self.move_params)
+        death_index = int(task_id / (self.repeat * move_num * move_num * dense_num))
+        dense_index = int(int(task_id % (move_num * move_num * dense_num)) / (move_num*move_num))
+        move_low_dens_index = int(int(int(task_id % (move_num * move_num * dense_num)) % (move_num * move_num)) / move_num)
+        move_high_dens_index = int(int(int(task_id % (move_num * move_num * dense_num)) % (move_num * move_num)) % move_num)
+        id = "M"+self.move_names[move_low_dens_index]+"_SwM"+self.move_names[move_high_dens_index]+"_SwD"+self.switch_density_names[dense_index]+"_D"+self.death_names[death_index]+"_SwB"+self.switch_bias_names[self.switch_bias_index]
+        return id
+
+    # Find taskID from params and run_index(=0,...,repeat)
+    def IDtoTaskID(self, params, run_index):
+        dense_num = len(self.switch_density_params)
+        move_num = len(self.move_params)
+        death_index = self.death_params.index(params[0])
+        dense_index = self.switch_density_params.index(params[1])
+        move_low_dens_index = self.move_params.index(params[2])
+        move_high_dens_index = self.move_params.index(params[3])
+        task_id = death_index*self.repeat*dense_num*move_num*move_num + run_index*dense_num*move_num*move_num + dense_index*move_num*move_num + move_low_dens_index*move_num + move_high_dens_index
+        return int(task_id)
+
+    # Find params from task_ID
+    def taskIDtoParams(self, task_id):
+        dense_num = len(self.switch_density_params)
+        move_num = len(self.move_params)
+        death_index = int(task_id / (self.repeat * move_num * move_num * dense_num))
+        dense_index = int(int(task_id % (move_num * move_num * dense_num)) / (move_num*move_num))
+        move_low_dens_index = int(int(int(task_id % (move_num * move_num * dense_num)) % (move_num * move_num)) / move_num)
+        move_high_dens_index = int(int(int(task_id % (move_num * move_num * dense_num)) % (move_num * move_num)) % move_num)
+        params = (self.death_params[death_index], self.switch_density_params[dense_index], self.move_params[move_low_dens_index], self.move_params[move_high_dens_index])
+        run_index = int(int(task_id / (move_num * move_num * dense_num)) % self.repeat)
+        return [params, run_index]
+
+    # Create staircase object
+    def make_staircase(self, params, LD):
+        p_prop = [sc.PopProp(), sc.PopProp()]
+        for population in range(2):
+            p_prop[population].InitCellsNum = 50
+            p_prop[population].ConsiderDensSwitch = True
+            p_prop[population].DeathRate = params[0]
+            p_prop[population].DensSwitchDens = params[1]
+            p_prop[population].DensSwitchTot = 1
+            p_prop[population].DensSwitchBias = self.switch_bias_params[self.switch_bias_index]
+        p_prop[0].Move = params[2]
+        p_prop[1].Move = params[3]
+        l_prop = sc.LatProp()
+        l_prop.LD = LD
+        l_prop.PopulationNumber = 2
+        return sc.Staircase(l_prop, p_prop)
+
+
+class DensMotSwitchB:
+    repeat = 10
+    adap_num = 7
+    # save lattice data
+    D = 1
+    CarryingCapacity = 1e5
+    GenBound = 8
+    GridBound = 8
+    PopulationNumber = 2
+    # save population data
+    InitCellsNum = [50, 0]
+    InitCellsGen = [0, 0]
+    InitCellsPos = [0, 0]
+    BirthRate = [1, 1]
+    StressBirthRate = [0, 0]
+    ResistCost = [0, 0]
+    death_params = [1e-1, 3e-1]
+    death_names = ["1E1", "3E1"]
+    StressDeathRate = [0, 0]
+    MuteUp = [1e-7, 1e-7]
+    MuteDown = [1e-4, 1e-4]
+    StressMuteUp = [0, 0]
+    StressMuteDown = [0, 0]
+    move_params = [1e-5, 3.16e-5, 1e-4, 3.16e-4, 1e-3, 3.16e-3, 1e-2, 3.16e-2, 1e-1, 3.16e-1, 1, 3.16, 10]
+    move_names = ["1E5", "3E5", "1E4", "3E4", "1E3", "3E3", "1E2", "3E2", "1E1", "3E1", "1", "3", "10"]
+    Chemotax = [0.5, 0.5]
+    StressDepChemotax = [False, False]
+    Chemokin = [0, 0]
+    SwitchUp = [0, 0]
+    SwitchDown = [0, 0]
+    ConsiderSwarm = [False, False]
+    SwarmingDens = [5e4, 5e4]
+    SwarmingMove = [1, 1]
+    ConsiderHGT = [False, False]
+    HGTRate = [0, 0]
+    CompetBelowStairs = [1, 1]
+    ConsiderDensSwitch = [True, True]
+    switch_bias_index = 1
+    switch_bias_params = [0, 1e-5/(1+1e-5), 1e-4/(1+1e-4), 1e-3/(1+1e-3), 1e-2/(1+1e-2), 1e-1/(1+1e-1)]
+    switch_bias_names = ["0", "1E5", "1E4", "1E3", "1E2", "1E1"]
+    DensSwitchTot = [10, 10]
+    switch_density_params = [1E2, 9.5E4]
+    switch_density_names = ["1E2", "9E4"]
+
+    # Find name_ID from task_ID
+    def taskIDtoID(self, task_id):
+        dense_num = len(self.switch_density_params)
+        move_num = len(self.move_params)
+        death_index = int(task_id / (self.repeat * move_num * move_num * dense_num))
+        dense_index = int(int(task_id % (move_num * move_num * dense_num)) / (move_num*move_num))
+        move_low_dens_index = int(int(int(task_id % (move_num * move_num * dense_num)) % (move_num * move_num)) / move_num)
+        move_high_dens_index = int(int(int(task_id % (move_num * move_num * dense_num)) % (move_num * move_num)) % move_num)
+        id = "M"+self.move_names[move_low_dens_index]+"_SwM"+self.move_names[move_high_dens_index]+"_SwD"+self.switch_density_names[dense_index]+"_D"+self.death_names[death_index]+"_SwB"+self.switch_bias_names[self.switch_bias_index]
+        return id
+
+    # Find taskID from params and run_index(=0,...,repeat)
+    def IDtoTaskID(self, params, run_index):
+        dense_num = len(self.switch_density_params)
+        move_num = len(self.move_params)
+        death_index = self.death_params.index(params[0])
+        dense_index = self.switch_density_params.index(params[1])
+        move_low_dens_index = self.move_params.index(params[2])
+        move_high_dens_index = self.move_params.index(params[3])
+        task_id = death_index*self.repeat*dense_num*move_num*move_num + run_index*dense_num*move_num*move_num + dense_index*move_num*move_num + move_low_dens_index*move_num + move_high_dens_index
+        return int(task_id)
+
+    # Find params from task_ID
+    def taskIDtoParams(self, task_id):
+        dense_num = len(self.switch_density_params)
+        move_num = len(self.move_params)
+        death_index = int(task_id / (self.repeat * move_num * move_num * dense_num))
+        dense_index = int(int(task_id % (move_num * move_num * dense_num)) / (move_num*move_num))
+        move_low_dens_index = int(int(int(task_id % (move_num * move_num * dense_num)) % (move_num * move_num)) / move_num)
+        move_high_dens_index = int(int(int(task_id % (move_num * move_num * dense_num)) % (move_num * move_num)) % move_num)
+        params = (self.death_params[death_index], self.switch_density_params[dense_index], self.move_params[move_low_dens_index], self.move_params[move_high_dens_index])
+        run_index = int(int(task_id / (move_num * move_num * dense_num)) % self.repeat)
+        return [params, run_index]
+
+    # Create staircase object
+    def make_staircase(self, params, LD):
+        p_prop = [sc.PopProp(), sc.PopProp()]
+        for population in range(2):
+            p_prop[population].InitCellsNum = 50
+            p_prop[population].ConsiderDensSwitch = True
+            p_prop[population].DeathRate = params[0]
+            p_prop[population].DensSwitchDens = params[1]
+            p_prop[population].DensSwitchTot = 1
+            p_prop[population].DensSwitchBias = self.switch_bias_params[self.switch_bias_index]
+        p_prop[0].Move = params[2]
+        p_prop[1].Move = params[3]
+        l_prop = sc.LatProp()
+        l_prop.LD = LD
+        l_prop.PopulationNumber = 2
         return sc.Staircase(l_prop, p_prop)

@@ -7,7 +7,6 @@ import scipy.special as sp
 import scipy.integrate as integrate
 import copy
 
-
 ###
 # Properties
 ###
@@ -37,6 +36,11 @@ class PopProp:
         self.SwarmingDensity = 5e4
         self.ConsiderHGT = False
         self.HGTRate = 0
+        self.CompetBelowStairs = 1
+        self.ConsiderDensSwitch = False
+        self.DensSwitchBias = 0.5
+        self.DensSwitchTot = 0
+        self.DensSwitchDens = 5E4
 
 
 class LatProp:
@@ -147,8 +151,12 @@ class Staircase:
     def BirthPC(self, pop, gen, pos, N):
         rate = 0
         N_pos = self.NSpaceTot(pos, N)
-        if N_pos < self.LProp.CarryingCapacity:
-            rate = (1 - N_pos / self.LProp.CarryingCapacity)
+        if pos < self.LProp.LD:
+            N_pos_below = 0
+        else:
+            N_pos_below = N[pop * self.LProp.GridBound + pos]
+        if N_pos+(self.PProp[pop].CompetBelowStairs-1)*N_pos_below < self.LProp.CarryingCapacity:
+            rate = 1 - (N_pos+(self.PProp[pop].CompetBelowStairs-1)*N_pos_below) / self.LProp.CarryingCapacity
             if pos < self.LProp.LD + gen:
                 rate *= (1 - self.PProp[pop].ResistCost) ** (self.LProp.LD + gen - pos - 1)
                 rate *= self.PProp[pop].BirthRate
@@ -214,13 +222,25 @@ class Staircase:
         return rate
 
     # Compute switch up per capita
-    def SwitchUpPC(self, pop, gen, pos):
+    def SwitchUpPC(self, pop, gen, pos, N):
         rate = self.PProp[pop].SwitchUp
+        if self.PProp[pop].ConsiderDensSwitch:
+            N_pos = self.NSpaceTot(pos, N)
+            if N_pos < self.PProp[pop].DensSwitchDens:
+                rate = 2 * self.PProp[0].DensSwitchBias * self.PProp[0].DensSwitchTot
+            else:
+                rate = 2 * (1-self.PProp[0].DensSwitchBias) * self.PProp[0].DensSwitchTot
         return rate
 
     # Compute switch down per capita
-    def SwitchDownPC(self, pop, gen, pos):
+    def SwitchDownPC(self, pop, gen, pos, N):
         rate = self.PProp[pop].SwitchDown
+        if self.PProp[pop].ConsiderDensSwitch:
+            N_pos = self.NSpaceTot(pos, N)
+            if N_pos < self.PProp[pop].DensSwitchDens:
+                rate = 2 * (1-self.PProp[0].DensSwitchBias) * self.PProp[0].DensSwitchTot
+            else:
+                rate = 2 * self.PProp[0].DensSwitchBias * self.PProp[0].DensSwitchTot
         return rate
 
     # Compute birth rate
@@ -265,13 +285,13 @@ class Staircase:
 
     # Compute switch up
     def SwitchUp(self, pop, gen, pos, N):
-        rate = self.SwitchUpPC(pop, gen, pos)
+        rate = self.SwitchUpPC(pop, gen, pos, N)
         rate *= N[gen * self.LProp.PopulationNumber * self.LProp.GridBound + pop * self.LProp.GridBound + pos]
         return rate
 
     # Compute switch down
     def SwitchDown(self, pop, gen, pos, N):
-        rate = self.SwitchDownPC(pop, gen, pos)
+        rate = self.SwitchDownPC(pop, gen, pos, N)
         rate *= N[gen * self.LProp.PopulationNumber * self.LProp.GridBound + pop * self.LProp.GridBound + pos]
         return rate
 
@@ -397,7 +417,7 @@ class Staircase:
         not_out = True
         for pop in range(self.LProp.PopulationNumber):
             if x[pop*self.LProp.GridBound+self.LProp.LD]<x[self.LProp.GridBound*self.LProp.PopulationNumber+pop*self.LProp.GridBound+self.LProp.LD]:
-                    not_out = False
+                not_out = False
         return not_out
 
     # Checks if overall wild-type is outcompeted by overall mutants for some population
@@ -409,6 +429,20 @@ class Staircase:
             for pos in range(self.LProp.GridBound):
                 wild_type += x[pop*self.LProp.GridBound+pos]
                 mutants += x[self.LProp.GridBound*self.LProp.PopulationNumber+pop*self.LProp.GridBound+pos]
+            if wild_type<mutants:
+                    not_out = False
+        return not_out
+
+    # Checks if overall wild-type around the overlap region is outcompeted by overall mutants around the overlap region for some population
+    def locally_not_outcompeted(self, x):
+        not_out = True
+        for pop in range(self.LProp.PopulationNumber):
+            wild_type=0
+            mutants=0
+            for pos in range(3):
+                if self.LProp.LD-1+pos >= 0 and self.LProp.LD-1+pos<self.LProp.GenBound:
+                    wild_type += x[pop*self.LProp.GridBound+self.LProp.LD-1+pos]
+                mutants += x[self.LProp.GridBound*self.LProp.PopulationNumber+pop*self.LProp.GridBound+self.LProp.LD-1+pos]
             if wild_type<mutants:
                     not_out = False
         return not_out
@@ -433,15 +467,106 @@ class Staircase:
             D += h
         return D
 
+    # compute growth time of initial population, i.e. before Ntot<Nequilibrium/2
+    def D_init(self, h, t_max):
+        self.LProp.GenBound = 1
+        x = np.zeros(self.LProp.GridBound*self.LProp.PopulationNumber)
+        for pop in range(self.LProp.PopulationNumber):
+            x[pop * self.LProp.GridBound + self.PProp[pop].InitCellsPos] = self.PProp[pop].InitCellsNum
+        D_init = 0
+        while np.sum(x) < np.sum(self.N)/2 and (D_init < t_max):
+            x = self.RK4_step(h, x)
+            D_init += h
+        self.LProp.GenBound = 2
+        return D_init
+
+    # compute reproduction probability having started in pop at pos and probability that some cell in the founding population survives
+    # outputs vector prob[pop*self.LProp.PopulationNumber+pos]
+    def reproduction_probability(self):
+        # prepare matrices and vectors for computation of the probability
+        M = np.zeros((self.LProp.GridBound*self.LProp.PopulationNumber, self.LProp.GridBound*self.LProp.PopulationNumber))
+        v = np.zeros((self.LProp.GridBound*self.LProp.PopulationNumber))
+        # record current wild-type population
+        x = np.zeros(2 * self.LProp.GridBound * self.LProp.PopulationNumber)
+        for pop in range(self.LProp.PopulationNumber):
+            for pos in range(self.LProp.GridBound):
+                if pos < self.LProp.LD:
+                    x[pop*self.LProp.GridBound+pos] = self.N[pop*self.LProp.GridBound+pos]-self.MuteUpPC(pop,0,pos)*self.N[pop*self.LProp.GridBound+pos]/(self.bD[pop]+self.cD[pop])
+                    x[self.LProp.GridBound*self.LProp.PopulationNumber+pop*self.LProp.GridBound+pos] = self.MuteUpPC(pop,0,pos)*self.N[pop*self.LProp.GridBound+pos]/(self.bD[pop]+self.cD[pop])
+                elif pos == self.LProp.LD:
+                    x[pop*self.LProp.GridBound+pos] = self.N[pop*self.LProp.GridBound+pos] - 1
+                    x[self.LProp.GridBound*self.LProp.PopulationNumber+pop*self.LProp.GridBound+pos] = 1
+                else:
+                    x[pop*self.LProp.GridBound+pos] = self.N[pop*self.LProp.GridBound+pos]-self.MuteUpPC(pop,0,pos)*self.N[pop*self.LProp.GridBound+pos]/(self.bN[pop]+self.cN[pop])
+                    x[self.LProp.GridBound*self.LProp.PopulationNumber+pop*self.LProp.GridBound+pos] = self.MuteUpPC(pop,0,pos)*self.N[pop*self.LProp.GridBound+pos]/(self.bN[pop]+self.cN[pop])
+        for pop in range(self.LProp.PopulationNumber):
+            for pos in range(self.LProp.GridBound):
+                n = pop*self.LProp.PopulationNumber+pos
+                n_below_exists = 0
+                n_below = None
+                if pop > 0:
+                    n_below_exists = 1
+                    n_below = (pop-1)*self.LProp.PopulationNumber+pos
+                n_above_exists = 0
+                n_above = None
+                if pop < self.LProp.PopulationNumber-1:
+                    n_above_exists = 1
+                    n_above = (pop+1)*self.LProp.PopulationNumber+pos
+                M[n][n] = 1
+                r = self.BirthPC(pop,1,pos,x)
+                d = self.DeathPC(pop,1,pos)
+                m_left = self.MoveLeftPC(pop,1,pos,x)
+                m_right = self.MoveRightPC(pop,1,pos,x)
+                s_up = self.SwitchUpPC(pop,1,pos,x)
+                s_down = self.SwitchDownPC(pop,1,pos,x)
+                if pos == 0:
+                    M[n][n+1] = -m_right/(d+m_right+r+n_below_exists*s_down+n_above_exists*s_up)
+                    v[n] = r/(d+m_right+r+n_below_exists*s_down+n_above_exists*s_up)
+                    if n_above_exists > 0:
+                        M[n][n_above] = -s_up/(d+m_right+r+n_below_exists*s_down+n_above_exists*s_up)
+                    if n_below_exists > 0:
+                        M[n][n_below] = -s_down/(d+m_right+r+n_below_exists*s_down+n_above_exists*s_up)
+                elif pos<self.LProp.GridBound-1:
+                    M[n][n+1] = -m_right/(d+m_right+m_left+r+n_below_exists*s_down+n_above_exists*s_up)
+                    M[n][n-1] = -m_left/(d+m_right+m_left+r+n_below_exists*s_down+n_above_exists*s_up)
+                    v[n] = r/(d+m_right+m_left+r+n_below_exists*s_down+n_above_exists*s_up)
+                    if n_above_exists > 0:
+                        M[n][n_above] = -s_up/(d+m_right+m_left+r+n_below_exists*s_down+n_above_exists*s_up)
+                    if n_below_exists > 0:
+                        M[n][n_below] = -s_down/(d+m_right+m_left+r+n_below_exists*s_down+n_above_exists*s_up)
+                else:
+                    M[n][n-1] = -m_left/(d+m_left+r+n_below_exists*s_down+n_above_exists*s_up)
+                    v[n] = r/(d+m_left+r+n_below_exists*s_down+n_above_exists*s_up)
+                    if n_above_exists > 0:
+                        M[n][n_above] = -s_up/(d+m_left+r+n_below_exists*s_down+n_above_exists*s_up)
+                    if n_below_exists > 0:
+                        M[n][n_below] = -s_down/(d+m_left+r+n_below_exists*s_down+n_above_exists*s_up)
+        M_inv = np.linalg.inv(M)
+        repr_prob = M_inv.dot(v)
+        return repr_prob
+
+    # computes probability of survival of a founder
+    def survival_probability(self):
+        prob_list = [self.reproduction_probability()[pop*self.LProp.PopulationNumber+self.LProp.LD] for pop in range(self.LProp.PopulationNumber)]
+        prob = sum(prob_list)/len(prob_list)
+        return prob
+
     # computes usual adaptation rate
     def adap_rate(self, h, t_max):
         T1 = self.T1()
+        prob_survival = self.survival_probability()
+        print('surv prob='+str(prob_survival))
+        T1 = T1/prob_survival
         D = self.D(h, t_max)
         print('T1=' + str(T1))
         print('D=' + str(D))
         if np.isinf(T1) or T1 < 0 or T1+D == 0:
             return 'NaN'
         else:
+            #if self.LProp.LD == 1:
+            #    D_init = self.D_init(h, t_max)
+            #    print('Dinit=' + str(D_init))
+            #    D += D_init
             return 1/(T1+D)
 
     # computes the adaptation rate where D is computed from LD-1, this appears in simulations
@@ -451,6 +576,8 @@ class Staircase:
             self.LProp.LD -= 1
             self.Initialize()
             D = self.D(h, t_max)
+            self.LProp.LD += 1
+            T1 = T1/self.survival_probability()
         else:
             D = 0
         print('T1=' + str(T1))
@@ -567,7 +694,8 @@ class Staircase:
 def CritMot(nu_max, error, pop, p_prop, l_prop):
     p_prop[pop].Move = nu_max
     stair = Staircase(l_prop, p_prop)
-    if stair.N[0] > 0:
+    if stair.N[0] > 1:
+        print(stair.N[0])
         return None
     else:
         nu_min = p_prop[pop].DeathRate

@@ -60,10 +60,15 @@ class SnapDatabase:
                 self.l_prop.GenBound = int(reader[7][1])
                 self.l_prop.CarryingCapacity = float(reader[8][1])
                 self.l_prop.LD = int(reader[9][1])
-
+                new_version = False
+                if len(reader) > 36 and len(reader[35]) > 1:
+                    if reader[35][0] == "CompetBelowStairs":   # new version
+                        prop_num = (39 - 12 + 1) + 2  # number of property rows + extra two rows for indent and Population, ...
+                        new_version = True
+                else:
+                    prop_num = (34 - 12 + 1) + 2  # number of property rows + extra two rows for indent and Population, ...
                 for pop in range(self.l_prop.PopulationNumber):
                     self.p_prop.append(sc.PopProp())
-                    prop_num = (34-12+1)+2 # number of property rows + extra two rows for indent and Population, ...
                     self.p_prop[pop].InitCellsNum = int(reader[12+prop_num*pop][1])
                     self.p_prop[pop].InitCellsGen = int(reader[13+prop_num*pop][1])
                     self.p_prop[pop].InitCellsPos = int(reader[14+prop_num*pop][1])
@@ -87,6 +92,13 @@ class SnapDatabase:
                     self.p_prop[pop].SwarmingMove = float(reader[32+prop_num*pop][1])
                     self.p_prop[pop].ConsiderHGT = bool(int(reader[33+prop_num*pop][1]))
                     self.p_prop[pop].HGTRate = float(reader[34+prop_num*pop][1])
+                    if new_version:
+                        self.p_prop[pop].CompetBelowStairs = float(reader[35+prop_num*pop][1])
+                        self.p_prop[pop].ConsiderDensSwitch = bool(int(reader[36+prop_num*pop][1]))
+                        self.p_prop[pop].DensSwitchBias = float(reader[37+prop_num*pop][1])
+                        self.p_prop[pop].DensSwitchTot = float(reader[38+prop_num*pop][1])
+                        self.p_prop[pop].DensSwitchDens = float(reader[39+prop_num*pop][1])
+
             else:
                 print("Error! Cannot read the preamble, the snapshot_file is empty: " + snapshot_file)
                 return None
@@ -215,6 +227,15 @@ class SnapDatabase:
         else:
             return None
 
+    # finds if there is a founder of the next state, if currently in resistance state R
+    def next_founder(self, gen_space_tot, R):
+        founder = False
+        if R<min(self.l_prop.GenBound-1,self.l_prop.GridBound-1):
+            for pop in range(self.l_prop.PopulationNumber):
+                if gen_space_tot[pop][R+1][R+1] > 0:    # i.e., there is a founder and this founder managed to reproduce
+                    founder = True
+        return founder
+
     ####
     # PLOTTING FUNCTIONS
     ####
@@ -240,6 +261,7 @@ class SnapDatabase:
         else:
             ax.set_xlabel('space x')
             ax.set_ylabel('genotype g')
+            ax.set_title('t = '+str(Time)+' h')
 
     # plots the stable wild-type plot into given axis
     # input: sim_index, ax(axes to plot to), labels(=true,false)
@@ -264,13 +286,16 @@ class SnapDatabase:
         else:
             ax.set_xticks([1+k for k in range(self.l_prop.GridBound)])
         ax.set_ylim([0, self.l_prop.CarryingCapacity])
-        #ax.set_ylim([0, 7*self.l_prop.CarryingCapacity/2]) # for chemotaxis
+        if self.p_prop[0].Chemotax != 0.5: # for chemotaxis
+            ax.set_ylim([0, 7 * self.l_prop.CarryingCapacity / 2])
         ax.set_xlim([1, self.l_prop.GridBound])
         ax.set_yticks([])
 
         # plot profile if a single swarming population is present
         if self.l_prop.PopulationNumber == 1 and self.p_prop[0].ConsiderSwarm:
             S = self.S(GenSpaceTot, 0)
+            if self.p_prop[0].Move > self.p_prop[0].SwarmingMove:
+                colors[0], colors[1] = colors[1], colors[0]
             for g in range(self.l_prop.GenBound):
                 g = self.l_prop.GenBound - 1 - g
                 N_sim = np.zeros(2*self.l_prop.GridBound-1)
@@ -301,6 +326,9 @@ class SnapDatabase:
         else:
             for plot_pop in range(self.l_prop.PopulationNumber):
                 color = plot_pop
+                if self.p_prop[0].ConsiderDensSwitch:
+                    if self.p_prop[0].Move < self.p_prop[1].Move:
+                        color = self.l_prop.PopulationNumber - 1 - plot_pop
                 plot_pop = self.l_prop.PopulationNumber - 1 - plot_pop
                 for g in range(self.l_prop.GenBound):
                     g = self.l_prop.GenBound - 1 - g
@@ -361,14 +389,13 @@ class SnapDatabase:
         if pop_labels:
             K = self.l_prop.CarryingCapacity
             ax.set_ylabel('$N_x$=$\\#$ cells', color='black')
-            if self.l_prop.PopulationNumber == 1 and self.p_prop[0].ConsiderSwarm:
-                ax.set_yticks([0, self.p_prop[0].SwarmingDensity, K])
-                ax.set_yticklabels(["0", "$K_S$", "$K$"])
-            else:
-                #ax.set_yticks([0, K / 2, K, 3 * K / 2, 2*K, 5*K/2, 3*K, 7*K/2])  # for chemotaxis
-                #ax.set_yticklabels(["0", "K/2", "K", "3K/2", "2K", "5K/2", "3K", "7K/2"])  # for chemotaxis
-                ax.set_yticks([0, K / 4, K / 2, 3 * K / 4, K])
-                ax.set_yticklabels(["0", "K/4", "K/2", "3K/4", "K"])
+            #ax.set_yticks([0, K / 2, K, 3 * K / 2, 2*K, 5*K/2, 3*K, 7*K/2])  # for chemotaxis
+            #ax.set_yticklabels(["0", "K/2", "K", "3K/2", "2K", "5K/2", "3K", "7K/2"])  # for chemotaxis
+            ax.set_yticks([0, K / 4, K / 2, 3 * K / 4, K])
+            ax.set_yticklabels(["0", "K/4", "K/2", "3K/4", "K"])
+            if self.p_prop[0].Chemotax != 0.5:  # for chemotaxis
+                ax.set_yticks([0, K / 2, K, 3 * K / 2, 2 * K, 5 * K / 2, 3 * K, 7 * K / 2])
+                ax.set_yticklabels(["0", "K/2", "K", "3K/2", "2K", "5K/2", "3K", "7K/2"])
         if x_label:
             ax.set_xlabel('space x')
         # make analytics
@@ -600,33 +627,60 @@ class SnapDatabase:
 # input: staircase (t/f), wildtype (t/f), max_time, fps speed (60 ususal), animation_name
 def animated_plot(simulations, staircase, wildtype, max_time, sim_delay, titles, fig_titles, animation_name):
     # prepare figure properties
-    staircase_num = int(staircase) * simulations[0].l_prop.PopulationNumber
-    wildtype_num = int(wildtype)
     sim_num = len(simulations)
-    for sim in range(sim_num):
-        fig_titles[sim] = r"$\bf{" + fig_titles[sim].replace(" ", r"}$ $\bf{") + "}$"
     staircase_width = 5.5
     wildtype_width = 5.5
-    width = staircase_width * staircase_num + wildtype_width * wildtype_num
+    staircase_num = []
+    wildtype_num = int(wildtype)
+    width = []
+    for sim in range(sim_num):
+        fig_titles[sim] = r"$\bf{" + fig_titles[sim].replace(" ", r"}$ $\bf{") + "}$"
+        staircase_num_local = int(staircase) * simulations[sim].l_prop.PopulationNumber
+        staircase_num.append(staircase_num_local)
+        width.append(staircase_width * staircase_num_local + wildtype_width * wildtype_num)
     height = 5*sim_num
-    width_ratio = [staircase_width for i in range(staircase_num)] + [wildtype_width for i in range(wildtype_num)]
     title_colors = ['#2E86C1', '#D4AC0D', '#28B463', '#CA6F1E']
     # create figure
-    fig = plt.figure(figsize=(width, height))
+    fig = plt.figure(figsize=(max(width), height))
     subfigs = fig.subfigures(nrows=sim_num, ncols=1)
+    if sim_num == 1:
+        subfigs = [subfigs]
     axs = []
     for row, subfig in enumerate(subfigs):
-        axes = subfig.subplots(nrows=1, ncols=staircase_num + wildtype_num, gridspec_kw={'width_ratios': width_ratio})
-        sub_axs = []
-        if staircase_num + wildtype_num == 1:
-            sub_axs.append(axes)
+        margin_width = (max(width)-width[row])/(staircase_num[row]+wildtype_width+1)
+        if margin_width > 0:
+            width_ratio = [margin_width]
+            for i in range(staircase_num[row]):
+                width_ratio.append(staircase_width*0.5)
+                width_ratio.append(margin_width)
+            for i in range(wildtype_num):
+                width_ratio.append(wildtype_width*0.5)
+                width_ratio.append(margin_width)
+            axes = subfig.subplots(nrows=1, ncols=2*(staircase_num[row] + wildtype_num) + 1, gridspec_kw={'width_ratios': width_ratio})
+            sub_axs = []
+            for plot in range(staircase_num[row] + wildtype_num):
+                sub_axs.append(axes[2*plot+1])
+                axes[2*plot].grid(False)
+                axes[2*plot].axis('off')
+            if wildtype:
+                ax_twin = sub_axs[staircase_num[row]].twinx()
+                sub_axs.append(ax_twin)
+            axs.append(sub_axs)
+            axes[-1].grid(False)
+            axes[-1].axis('off')
         else:
-            for plot in range(staircase_num + wildtype_num):
-                sub_axs.append(axes[plot])
-        if wildtype:
-            ax_twin = sub_axs[staircase_num].twinx()
-            sub_axs.append(ax_twin)
-        axs.append(sub_axs)
+            width_ratio = [staircase_width for i in range(staircase_num[row])] + [wildtype_width for i in range(wildtype_num)]
+            axes = subfig.subplots(nrows=1, ncols=staircase_num[row] + wildtype_num, gridspec_kw={'width_ratios': width_ratio})
+            sub_axs = []
+            if staircase_num[row] + wildtype_num == 1:
+                sub_axs.append(axes)
+            else:
+                for plot in range(staircase_num[row] + wildtype_num):
+                    sub_axs.append(axes[plot])
+            if wildtype:
+                ax_twin = sub_axs[staircase_num[row]].twinx()
+                sub_axs.append(ax_twin)
+            axs.append(sub_axs)
     # prepare folder
     date_time = datetime.datetime.now()
     folder_specifier = "_" + str(date_time.date().day) + "_" + str(date_time.date().month) + "_" + str(
@@ -637,18 +691,27 @@ def animated_plot(simulations, staircase, wildtype, max_time, sim_delay, titles,
     # draw the figure for each time and take a snapshot
     stop_times = [simulations[sim].stop_time for sim in range(sim_num)]
     max_time = min([max_time]+stop_times)
+    #R = [0 for sim in range(sim_num)]
     for plot_index in range(int(max_time / sim_delay)):
         for sim in range(sim_num):
             sim_index = int(sim_delay / simulations[sim].sim_interval) * plot_index
             # plot staircase
             if staircase:
-                for plot_pop in range(staircase_num):
-                    simulations[sim].staircase_plot(sim_index, simulations[sim].l_prop.PopulationNumber - 1 - plot_pop, axs[sim][plot_pop], True)
-                    if staircase_num > 1:
-                        axs[sim][plot_pop].set_title(titles[plot_pop], color=title_colors[plot_pop])
+                for plot_pop in range(staircase_num[sim]):
+                    if simulations[sim].p_prop[0].ConsiderDensSwitch:
+                        simulations[sim].staircase_plot(sim_index, plot_pop, axs[sim][plot_pop], True)
+                        if staircase_num[sim] > 1:
+                            if simulations[sim].p_prop[0].Move > simulations[sim].p_prop[1].Move:
+                                axs[sim][plot_pop].set_title(titles[plot_pop], color=title_colors[simulations[sim].l_prop.PopulationNumber - 1 - plot_pop])
+                            else:
+                                axs[sim][plot_pop].set_title(titles[plot_pop], color=title_colors[plot_pop])
+                    else:
+                        simulations[sim].staircase_plot(sim_index, simulations[sim].l_prop.PopulationNumber - 1 - plot_pop, axs[sim][plot_pop], True)
+                        if staircase_num[sim] > 1:
+                            axs[sim][plot_pop].set_title(titles[plot_pop], color=title_colors[plot_pop])
             # plot wildtype
             if wildtype:
-                simulations[sim].wild_type_plot(sim_index, True, True, True, True, False, axs[sim][staircase_num], axs[sim][staircase_num + 1], False)
+                simulations[sim].wild_type_plot(sim_index, True, True, True, True, False, axs[sim][staircase_num[sim]], axs[sim][staircase_num[sim] + 1], False)
             # read gen_space_tot
             if simulations[sim].read_gen_space_tot(sim_index) is None:
                 [Time, GenSpaceTot] = [np.inf, np.zeros((simulations[sim].l_prop.PopulationNumber, simulations[sim].l_prop.GridBound, simulations[sim].l_prop.GridBound))]
@@ -656,12 +719,111 @@ def animated_plot(simulations, staircase, wildtype, max_time, sim_delay, titles,
                 [Time, GenSpaceTot] = simulations[sim].read_gen_space_tot(sim_index)
             # plot title
             R = simulations[sim].LD(GenSpaceTot)
+            #if simulations[sim].next_founder(GenSpaceTot, R[sim]):
+            #    R[sim] += 1
             subfigs[sim].suptitle(fig_titles[sim]+", Time: " + "{:6.1f}".format(Time) + "h, R: " + str(R))
         # take a snapshot and clear the canvas
-        fig.savefig(folder_name + "\\" + animation_name + "-" + str(plot_index + 1) + ".png",
-                    dpi=300)  # save the figure to file
+        #fig.savefig(folder_name + "\\" + animation_name + "-" + str(plot_index + 1) + ".svg")  # save the figure to file
+        fig.savefig(folder_name + "\\" + animation_name + "-" + str(plot_index + 1) + ".png", dpi=300)  # save the figure to file
         for sim in range(sim_num):
             for ax in axs[sim]:
                 for artist in ax.lines + ax.collections + ax.patches:
                     artist.remove()
         print("Created frame: " + str(plot_index))
+
+# produces a specific snapshot from the animation of staircase and wild_type plots from mutliple simulations
+# the code requires: SAME POPULATION NUMBER, SAME TITLES FOR RESPECTIVE POPULATIONS
+# input: staircase (t/f), wildtype (t/f), max_time, fps speed (60 ususal), animation_name
+def snap_animated_plot(plot_index, simulations, staircase, wildtype, max_time, sim_delay, titles, fig_titles, animation_name):
+    # prepare figure properties
+    gen_space_tot = []
+    sim_num = len(simulations)
+    staircase_width = 5.5
+    wildtype_width = 5.5
+    staircase_num = []
+    wildtype_num = int(wildtype)
+    width = []
+    for sim in range(sim_num):
+        fig_titles[sim] = r"$\bf{" + fig_titles[sim].replace(" ", r"}$ $\bf{") + "}$"
+        staircase_num_local = int(staircase) * simulations[sim].l_prop.PopulationNumber
+        staircase_num.append(staircase_num_local)
+        width.append(staircase_width * staircase_num_local + wildtype_width * wildtype_num)
+    height = 5*sim_num
+    title_colors = ['#2E86C1', '#D4AC0D', '#28B463', '#CA6F1E']
+    # create figure
+    fig = plt.figure(figsize=(max(width), height))
+    subfigs = fig.subfigures(nrows=sim_num, ncols=1)
+    if sim_num == 1:
+        subfigs = [subfigs]
+    axs = []
+    for row, subfig in enumerate(subfigs):
+        margin_width = (max(width)-width[row])/(staircase_num[row]+wildtype_width+1)
+        if margin_width > 0:
+            width_ratio = [margin_width]
+            for i in range(staircase_num[row]):
+                width_ratio.append(staircase_width*0.5)
+                width_ratio.append(margin_width)
+            for i in range(wildtype_num):
+                width_ratio.append(wildtype_width*0.5)
+                width_ratio.append(margin_width)
+            axes = subfig.subplots(nrows=1, ncols=2*(staircase_num[row] + wildtype_num) + 1, gridspec_kw={'width_ratios': width_ratio})
+            sub_axs = []
+            for plot in range(staircase_num[row] + wildtype_num):
+                sub_axs.append(axes[2*plot+1])
+                axes[2*plot].grid(False)
+                axes[2*plot].axis('off')
+            if wildtype:
+                ax_twin = sub_axs[staircase_num[row]].twinx()
+                sub_axs.append(ax_twin)
+            axs.append(sub_axs)
+            axes[-1].grid(False)
+            axes[-1].axis('off')
+        else:
+            width_ratio = [staircase_width for i in range(staircase_num[row])] + [wildtype_width for i in range(wildtype_num)]
+            axes = subfig.subplots(nrows=1, ncols=staircase_num[row] + wildtype_num, gridspec_kw={'width_ratios': width_ratio})
+            sub_axs = []
+            if staircase_num[row] + wildtype_num == 1:
+                sub_axs.append(axes)
+            else:
+                for plot in range(staircase_num[row] + wildtype_num):
+                    sub_axs.append(axes[plot])
+            if wildtype:
+                ax_twin = sub_axs[staircase_num[row]].twinx()
+                sub_axs.append(ax_twin)
+            axs.append(sub_axs)
+    # draw the figure for each time and take a snapshot
+    stop_times = [simulations[sim].stop_time for sim in range(sim_num)]
+    max_time = min([max_time]+stop_times)
+    #R = [0 for sim in range(sim_num)]
+    for sim in range(sim_num):
+        sim_index = int(sim_delay / simulations[sim].sim_interval) * plot_index
+        # plot staircase
+        if staircase:
+            for plot_pop in range(staircase_num[sim]):
+                if simulations[sim].p_prop[0].ConsiderDensSwitch:
+                    simulations[sim].staircase_plot(sim_index, plot_pop, axs[sim][plot_pop], True)
+                    if staircase_num[sim] > 1:
+                        if simulations[sim].p_prop[0].Move > simulations[sim].p_prop[1].Move:
+                            axs[sim][plot_pop].set_title(titles[plot_pop], color=title_colors[simulations[sim].l_prop.PopulationNumber - 1 - plot_pop])
+                        else:
+                            axs[sim][plot_pop].set_title(titles[plot_pop], color=title_colors[plot_pop])
+                else:
+                    simulations[sim].staircase_plot(sim_index, simulations[sim].l_prop.PopulationNumber - 1 - plot_pop, axs[sim][plot_pop], True)
+                    if staircase_num[sim] > 1:
+                        axs[sim][plot_pop].set_title(titles[plot_pop], color=title_colors[plot_pop])
+        # plot wildtype
+        if wildtype:
+            simulations[sim].wild_type_plot(sim_index, True, True, True, True, False, axs[sim][staircase_num[sim]], axs[sim][staircase_num[sim] + 1], False)
+        # read gen_space_tot
+        if simulations[sim].read_gen_space_tot(sim_index) is None:
+            [Time, GenSpaceTot] = [np.inf, np.zeros((simulations[sim].l_prop.PopulationNumber, simulations[sim].l_prop.GridBound, simulations[sim].l_prop.GridBound))]
+        else:
+            [Time, GenSpaceTot] = simulations[sim].read_gen_space_tot(sim_index)
+        # plot title
+        R = simulations[sim].LD(GenSpaceTot)
+        #if simulations[sim].next_founder(GenSpaceTot, R[sim]):
+        #    R[sim] += 1
+        subfigs[sim].suptitle(fig_titles[sim]+", Time: " + "{:6.1f}".format(Time) + "h, R: " + str(R))
+        gen_space_tot.append(GenSpaceTot)
+    # take a snapshot and clear the canvas
+    return fig, gen_space_tot
