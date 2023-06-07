@@ -13,7 +13,7 @@ This demo shows how to do Postprocessing of Supplementary Movie 1 in [1]. Prepro
 ## Instructions:
 1) Check that the file SnapshotBuild_LowHighMot.zip, created in Preprocessing, is saved in the folder Build.
 2) Create a folder RawMovies.
-3) Open the file AnimPlots.py and run the code.
+3) Open the file Movie1.py and run the code.
 4) Open the folder RawMovies and notice that a folder with the snapshots of the movie were created.
 5) Use your favourite software to turn a sequence of movie snapshots into a movie file. (I used ImageJ.)
 
