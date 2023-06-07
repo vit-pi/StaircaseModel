@@ -61,6 +61,7 @@ public:
 	vector<vector<int>> SpaceTot;
 	vector<vector<int>> GenTot;
 	vector<int> AbsSpaceTot;
+	vector<int> AbsSpaceTotUnderStair;
 	vector<int> AbsGenTot;
 	vector<vector<int>> StablePop;
 	int AbsTot;

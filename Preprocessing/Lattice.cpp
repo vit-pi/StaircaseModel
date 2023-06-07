@@ -207,14 +207,14 @@ double Lattice::FindActionRate(int action) {
     double action_rate = 0;
     switch (Actions[action][3]) {
     case 0: // Divide
-        if (AbsSpaceTot[Actions[action][2]] <= LProp.CarryingCapacity) {
+        if (AbsSpaceTot[Actions[action][2]]+(PProp[Actions[action][0]].CompetBelowStairs-1)*AbsSpaceTotUnderStair[Actions[action][2]] <= LProp.CarryingCapacity) {
             if (Actions[action][1] + LProp.D > Actions[action][2]) {
                 action_rate = PProp[Actions[action][0]].BirthRate * pow(1 - PProp[Actions[action][0]].ResistCost, Actions[action][1] - Actions[action][2]+LProp.D-1);
             }
             else {
                 action_rate = PProp[Actions[action][0]].StressBirthRate;
             }
-            action_rate *= (1 - AbsSpaceTot[Actions[action][2]] / LProp.CarryingCapacity);
+            action_rate *= (1 - (AbsSpaceTot[Actions[action][2]]+(PProp[Actions[action][0]].CompetBelowStairs-1)*AbsSpaceTotUnderStair[Actions[action][2]]) / LProp.CarryingCapacity);
         }
         action_rate *= GenSpaceTot[Actions[action][0]][Actions[action][1]][Actions[action][2]];
         break;
@@ -277,10 +277,26 @@ double Lattice::FindActionRate(int action) {
         break;
     case 6: // SwitchUp
         action_rate = PProp[Actions[action][0]].SwitchUp;
+        if (PProp[Actions[action][0]].ConsiderDensSwitch){
+            if (AbsSpaceTot[Actions[action][2]]<PProp[Actions[action][0]].DensSwitchDens){
+                action_rate = 2*PProp[Actions[action][0]].DensSwitchBias*PProp[Actions[action][0]].DensSwitchTot;
+            }
+            else{
+                action_rate = 2*(1-PProp[Actions[action][0]].DensSwitchBias)*PProp[Actions[action][0]].DensSwitchTot;
+            }
+        }
         action_rate *= GenSpaceTot[Actions[action][0]][Actions[action][1]][Actions[action][2]];
         break;
     case 7: // SwitchDown
         action_rate = PProp[Actions[action][0]].SwitchDown;
+        if (PProp[Actions[action][0]].ConsiderDensSwitch){
+            if (AbsSpaceTot[Actions[action][2]]<PProp[Actions[action][0]].DensSwitchDens){
+                action_rate = 2*(1-PProp[Actions[action][0]].DensSwitchBias)*PProp[Actions[action][0]].DensSwitchTot;
+            }
+            else{
+                action_rate = 2*PProp[Actions[action][0]].DensSwitchBias*PProp[Actions[action][0]].DensSwitchTot;
+            }
+        }
         action_rate *= GenSpaceTot[Actions[action][0]][Actions[action][1]][Actions[action][2]];
         break;
     case 8: // HGT
@@ -300,6 +316,9 @@ void Lattice::ExecuteAction(int action) {
         SpaceTot[Actions[action][0]][Actions[action][2]] += 1;
         GenTot[Actions[action][0]][Actions[action][1]] += 1;
         AbsSpaceTot[Actions[action][2]] += 1;
+        if (Actions[action][1] + LProp.D - 1 < Actions[action][2]){
+            AbsSpaceTotUnderStair[Actions[action][2]] += 1;
+        }
         AbsGenTot[Actions[action][1]] += 1;
         AbsTot += 1;
         break;
@@ -308,6 +327,9 @@ void Lattice::ExecuteAction(int action) {
         SpaceTot[Actions[action][0]][Actions[action][2]] -= 1;
         GenTot[Actions[action][0]][Actions[action][1]] -= 1;
         AbsSpaceTot[Actions[action][2]] -= 1;
+        if (Actions[action][1] + LProp.D - 1 < Actions[action][2]){
+            AbsSpaceTotUnderStair[Actions[action][2]] -= 1;
+        }
         AbsGenTot[Actions[action][1]] -= 1;
         AbsTot -= 1;
         break;
@@ -315,6 +337,9 @@ void Lattice::ExecuteAction(int action) {
         GenSpaceTot[Actions[action][0]][Actions[action][1]][Actions[action][2]] -= 1;
         GenTot[Actions[action][0]][Actions[action][1]] -= 1;
         AbsGenTot[Actions[action][1]] -= 1;
+        if (Actions[action][1] + LProp.D == Actions[action][2]){
+            AbsSpaceTotUnderStair[Actions[action][2]] -= 1;
+        }
 
         GenSpaceTot[Actions[action][0]][Actions[action][1] + 1][Actions[action][2]] += 1;
         GenTot[Actions[action][0]][Actions[action][1] + 1] += 1;
@@ -324,6 +349,9 @@ void Lattice::ExecuteAction(int action) {
         GenSpaceTot[Actions[action][0]][Actions[action][1]][Actions[action][2]] -= 1;
         GenTot[Actions[action][0]][Actions[action][1]] -= 1;
         AbsGenTot[Actions[action][1]] -= 1;
+        if (Actions[action][1] + LProp.D - 1 == Actions[action][2]){
+            AbsSpaceTotUnderStair[Actions[action][2]] += 1;
+        }
 
         GenSpaceTot[Actions[action][0]][Actions[action][1] - 1][Actions[action][2]] += 1;
         GenTot[Actions[action][0]][Actions[action][1] - 1] += 1;
@@ -333,19 +361,31 @@ void Lattice::ExecuteAction(int action) {
         GenSpaceTot[Actions[action][0]][Actions[action][1]][Actions[action][2]] -= 1;
         SpaceTot[Actions[action][0]][Actions[action][2]] -= 1;
         AbsSpaceTot[Actions[action][2]] -= 1;
+        if (Actions[action][1] + LProp.D - 1 < Actions[action][2]){
+            AbsSpaceTotUnderStair[Actions[action][2]] -= 1;
+        }
 
         GenSpaceTot[Actions[action][0]][Actions[action][1]][Actions[action][2] + 1] += 1;
         SpaceTot[Actions[action][0]][Actions[action][2] + 1] += 1;
         AbsSpaceTot[Actions[action][2] + 1] += 1;
+        if (Actions[action][1] + LProp.D - 1 < Actions[action][2] + 1){
+            AbsSpaceTotUnderStair[Actions[action][2]+1] += 1;
+        }
         break;
     case 5: // MoveLeft
         GenSpaceTot[Actions[action][0]][Actions[action][1]][Actions[action][2]] -= 1;
         SpaceTot[Actions[action][0]][Actions[action][2]] -= 1;
         AbsSpaceTot[Actions[action][2]] -= 1;
+        if (Actions[action][1] + LProp.D -1 < Actions[action][2]){
+            AbsSpaceTotUnderStair[Actions[action][2]] -= 1;
+        }
 
         GenSpaceTot[Actions[action][0]][Actions[action][1]][Actions[action][2] - 1] += 1;
         SpaceTot[Actions[action][0]][Actions[action][2] - 1] += 1;
         AbsSpaceTot[Actions[action][2] - 1] += 1;
+        if (Actions[action][1] + LProp.D - 1 < Actions[action][2] - 1){
+            AbsSpaceTotUnderStair[Actions[action][2]-1] += 1;
+        }
         break;
     case 6: // SwitchUp
         GenSpaceTot[Actions[action][0]][Actions[action][1]][Actions[action][2]] -= 1;
@@ -369,6 +409,9 @@ void Lattice::ExecuteAction(int action) {
         GenSpaceTot[Actions[action][0]][Actions[action][1]][Actions[action][2]] -= 1;
         GenTot[Actions[action][0]][Actions[action][1]] -= 1;
         AbsGenTot[Actions[action][1]] -= 1;
+        if ((Actions[action][4] + LProp.D > Actions[action][2]) && (Actions[action][1] + LProp.D <= Actions[action][2])){
+            AbsSpaceTotUnderStair[Actions[action][2]] -= 1;
+        }
 
         GenSpaceTot[Actions[action][0]][Actions[action][4]][Actions[action][2]] += 1;
         GenTot[Actions[action][0]][Actions[action][4]] += 1;
@@ -391,6 +434,7 @@ Lattice::Lattice(LatProp l_prop, vector<PopProp> p_prop) {
     StablePop = vector<vector<int>>(LProp.PopulationNumber, vector<int>(LProp.GridBound,0));
     AbsTot = 0;
     AbsSpaceTot = vector<int>(LProp.GridBound, 0);
+    AbsSpaceTotUnderStair = vector<int>(LProp.GridBound, 0);
     AbsGenTot = vector<int>(LProp.GenBound, 0);
     for (int population = 0; population < LProp.PopulationNumber; population++) {
         GenSpaceTot.push_back(vector<vector<int>>(LProp.GenBound, vector<int>(LProp.GridBound, 0)));
@@ -408,6 +452,9 @@ Lattice::Lattice(LatProp l_prop, vector<PopProp> p_prop) {
             for (int position = 0; position < LProp.GridBound; position ++){
                 stable_tot += StablePop[population][position];
                 AbsSpaceTot[position] += StablePop[population][position];
+                if (position >=  LProp.D){
+                    AbsSpaceTotUnderStair[position] += StablePop[population][position];
+                }
             }
             GenTot[population][0] = stable_tot;
             AbsGenTot[0] += stable_tot;
@@ -420,6 +467,9 @@ Lattice::Lattice(LatProp l_prop, vector<PopProp> p_prop) {
             AbsSpaceTot[PProp[population].InitCellsPos] += PProp[population].InitCellsNum;
             AbsGenTot[PProp[population].InitCellsGen] += PProp[population].InitCellsNum;
             AbsTot += PProp[population].InitCellsNum;
+            if (PProp[population].InitCellsGen + LProp.D <= PProp[population].InitCellsPos){
+                AbsSpaceTotUnderStair[PProp[population].InitCellsPos] += PProp[population].InitCellsNum;
+            }
         } 
     }
 
@@ -455,7 +505,7 @@ Lattice::Lattice(LatProp l_prop, vector<PopProp> p_prop) {
                     if (population > 0) {
                         Actions.push_back(vector<int> {population, genotype, position, 7});
                     }
-                // 7 = HGT
+                // 8 = HGT
                     if (PProp[population].ConsiderHGT) {
                         if (genotype < LProp.GenBound-1) {
                             for (int genotype_donor = genotype + 1;  genotype_donor < LProp.GenBound; genotype_donor++) {
@@ -481,15 +531,14 @@ Lattice::Lattice(LatProp l_prop, vector<PopProp> p_prop) {
                 else if ((Actions[i][1] == Actions[action][1]) && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2])) {
                     container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderSwarm){
-                    if ((Actions[i][0] == Actions[action][0]) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderSwarm && (Actions[i][0] == Actions[action][0]) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
+                    container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderHGT){
-                    if ((Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderHGT && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
+                    container.push_back(i);
+                }
+                else if (PProp[Actions[i][0]].ConsiderDensSwitch && (Actions[i][2] == Actions[action][2]) && ((Actions[i][3] == 6)||(Actions[i][3] == 7))){
+                    container.push_back(i);
                 }
             }
             for (int i = action + 1; (i < Actions.size()) && (Actions[i][2] < Actions[action][2] + 1); i++) {
@@ -499,15 +548,14 @@ Lattice::Lattice(LatProp l_prop, vector<PopProp> p_prop) {
                 else if ((Actions[i][1] == Actions[action][1]) && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2])) {
                     container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderSwarm){
-                    if ((Actions[i][0] == Actions[action][0]) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderSwarm && (Actions[i][0] == Actions[action][0]) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
+                    container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderHGT){
-                    if ((Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderHGT && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
+                    container.push_back(i);
+                }
+                else if ((PProp[Actions[i][0]].ConsiderDensSwitch) && (Actions[i][2] == Actions[action][2]) && ((Actions[i][3] == 6)||(Actions[i][3] == 7))){
+                    container.push_back(i);
                 }
             }
             break;
@@ -519,15 +567,14 @@ Lattice::Lattice(LatProp l_prop, vector<PopProp> p_prop) {
                 else if ((Actions[i][1] == Actions[action][1]) && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2])) {
                     container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderSwarm){
-                    if ((Actions[i][0] == Actions[action][0]) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderSwarm && (Actions[i][0] == Actions[action][0]) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
+                    container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderHGT){
-                    if ((Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderHGT && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
+                    container.push_back(i);
+                }
+                else if (PProp[Actions[i][0]].ConsiderDensSwitch && (Actions[i][2] == Actions[action][2]) && ((Actions[i][3] == 6)||(Actions[i][3] == 7))){
+                    container.push_back(i);
                 }
             }
             for (int i = action + 1; (i < Actions.size()) && (Actions[i][2] < Actions[action][2] + 1); i++) {
@@ -537,15 +584,14 @@ Lattice::Lattice(LatProp l_prop, vector<PopProp> p_prop) {
                 else if ((Actions[i][1] == Actions[action][1]) && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2])) {
                     container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderSwarm){
-                    if ((Actions[i][0] == Actions[action][0]) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderSwarm && (Actions[i][0] == Actions[action][0]) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
+                    container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderHGT){
-                    if ((Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderHGT && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
+                    container.push_back(i);
+                }
+                else if (PProp[Actions[i][0]].ConsiderDensSwitch && (Actions[i][2] == Actions[action][2]) && ((Actions[i][3] == 6)||(Actions[i][3] == 7))){
+                    container.push_back(i);
                 }
             }
             break;
@@ -554,10 +600,11 @@ Lattice::Lattice(LatProp l_prop, vector<PopProp> p_prop) {
                 if ((Actions[i][1] == Actions[action][1]) && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2])) {
                     container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderHGT){
-                    if ((Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 8) && ((Actions[i][4] == Actions[action][1])||(Actions[i][4] == Actions[action][1]+1))) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderHGT && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 8) && ((Actions[i][4] == Actions[action][1])||(Actions[i][4] == Actions[action][1]+1))) {
+                    container.push_back(i);
+                }
+                else if ((Actions[action][1] + LProp.D == Actions[action][2]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 0)){
+                    container.push_back(i);
                 }
             }
             for (int i = action + 1; (i < Actions.size()) && (Actions[i][2] < Actions[action][2] + 1); i++) {
@@ -567,10 +614,11 @@ Lattice::Lattice(LatProp l_prop, vector<PopProp> p_prop) {
                 else if ((Actions[i][1] == Actions[action][1] + 1) && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2])) {
                     container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderHGT){
-                    if ((Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 8) && ((Actions[i][4] == Actions[action][1])||(Actions[i][4] == Actions[action][1]+1))) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderHGT && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 8) && ((Actions[i][4] == Actions[action][1])||(Actions[i][4] == Actions[action][1]+1))) {
+                    container.push_back(i);
+                }
+                else if ((Actions[action][1] + LProp.D == Actions[action][2]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 0)){
+                    container.push_back(i);
                 }
             }
             break;
@@ -582,20 +630,22 @@ Lattice::Lattice(LatProp l_prop, vector<PopProp> p_prop) {
                 else if ((Actions[i][1] == Actions[action][1] - 1) && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2])) {
                     container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderHGT){
-                    if ((Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 8) && ((Actions[i][4] == Actions[action][1])||(Actions[i][4] == Actions[action][1]-1))) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderHGT && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 8) && ((Actions[i][4] == Actions[action][1])||(Actions[i][4] == Actions[action][1]-1))) {
+                    container.push_back(i);
+                }
+                else if ((Actions[action][1] + LProp.D == Actions[action][2] + 1) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 0)){
+                    container.push_back(i);
                 }
             }
             for (int i = action + 1; (i < Actions.size()) && (Actions[i][2] < Actions[action][2] + 1); i++) {
                 if ((Actions[i][1] == Actions[action][1]) && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2])) {
                     container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderHGT){
-                    if ((Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 8) && ((Actions[i][4] == Actions[action][1])||(Actions[i][4] == Actions[action][1]-1))) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderHGT && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 8) && ((Actions[i][4] == Actions[action][1])||(Actions[i][4] == Actions[action][1]-1))) {
+                    container.push_back(i);
+                }
+                else if ((Actions[action][1] + LProp.D == Actions[action][2] + 1) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 0)){
+                    container.push_back(i);
                 }
             }
             break;
@@ -607,15 +657,14 @@ Lattice::Lattice(LatProp l_prop, vector<PopProp> p_prop) {
                 else if ((Actions[i][1] == Actions[action][1]) && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2])) {
                     container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderSwarm){
-                    if ((Actions[i][0] == Actions[action][0]) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderSwarm && (Actions[i][0] == Actions[action][0]) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
+                    container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderHGT){
-                    if ((Actions[i][0] == Actions[action][0]) && ((Actions[i][2] == Actions[action][2])||(Actions[i][2] == Actions[action][2]+1)) && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderHGT && (Actions[i][0] == Actions[action][0]) && ((Actions[i][2] == Actions[action][2])||(Actions[i][2] == Actions[action][2]+1)) && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
+                    container.push_back(i);
+                }
+                else if (PProp[Actions[i][0]].ConsiderDensSwitch && ((Actions[i][2] == Actions[action][2])||(Actions[i][2] == Actions[action][2]+1)) && ((Actions[i][3] == 6)||(Actions[i][3] == 7))){
+                    container.push_back(i);
                 }
             }
             for (int i = action + 1; (i < Actions.size()) && (Actions[i][2] < Actions[action][2] + 2); i++) {
@@ -628,15 +677,14 @@ Lattice::Lattice(LatProp l_prop, vector<PopProp> p_prop) {
                 else if ((Actions[i][1] == Actions[action][1]) && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2] + 1)) {
                     container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderSwarm){
-                    if ((Actions[i][0] == Actions[action][0]) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderSwarm && (Actions[i][0] == Actions[action][0]) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
+                    container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderHGT){
-                    if ((Actions[i][0] == Actions[action][0]) && ((Actions[i][2] == Actions[action][2])||(Actions[i][2] == Actions[action][2]+1)) && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderHGT && (Actions[i][0] == Actions[action][0]) && ((Actions[i][2] == Actions[action][2])||(Actions[i][2] == Actions[action][2]+1)) && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
+                    container.push_back(i);
+                }
+                else if (PProp[Actions[i][0]].ConsiderDensSwitch && ((Actions[i][2] == Actions[action][2])||(Actions[i][2] == Actions[action][2]+1)) && ((Actions[i][3] == 6)||(Actions[i][3] == 7))){
+                    container.push_back(i);
                 }
             }
             break;
@@ -651,15 +699,14 @@ Lattice::Lattice(LatProp l_prop, vector<PopProp> p_prop) {
                 else if ((Actions[i][1] == Actions[action][1]) && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2] - 1)) {
                     container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderSwarm){
-                    if ((Actions[i][0] == Actions[action][0]) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderSwarm && (Actions[i][0] == Actions[action][0]) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
+                    container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderHGT){
-                    if ((Actions[i][0] == Actions[action][0]) && ((Actions[i][2] == Actions[action][2])||(Actions[i][2] == Actions[action][2]-1)) && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderHGT && (Actions[i][0] == Actions[action][0]) && ((Actions[i][2] == Actions[action][2])||(Actions[i][2] == Actions[action][2]-1)) && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
+                    container.push_back(i);
+                }
+                else if (PProp[Actions[i][0]].ConsiderDensSwitch && ((Actions[i][2] == Actions[action][2])||(Actions[i][2] == Actions[action][2]-1)) && ((Actions[i][3] == 6)||(Actions[i][3] == 7))){
+                    container.push_back(i);
                 }
             }
             for (int i = action + 1; (i < Actions.size()) && (Actions[i][2] < Actions[action][2] + 1); i++) {
@@ -669,15 +716,14 @@ Lattice::Lattice(LatProp l_prop, vector<PopProp> p_prop) {
                 else if ((Actions[i][1] == Actions[action][1]) && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2])) {
                     container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderSwarm){
-                    if ((Actions[i][0] == Actions[action][0]) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderSwarm && (Actions[i][0] == Actions[action][0]) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
+                    container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderHGT){
-                    if ((Actions[i][0] == Actions[action][0]) && ((Actions[i][2] == Actions[action][2])||(Actions[i][2] == Actions[action][2]-1)) && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderHGT && (Actions[i][0] == Actions[action][0]) && ((Actions[i][2] == Actions[action][2])||(Actions[i][2] == Actions[action][2]-1)) && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
+                    container.push_back(i);
+                }
+                else if (PProp[Actions[i][0]].ConsiderDensSwitch && ((Actions[i][2] == Actions[action][2])||(Actions[i][2] == Actions[action][2]-1)) && ((Actions[i][3] == 6)||(Actions[i][3] == 7))){
+                    container.push_back(i);
                 }
             }
             break;
@@ -686,15 +732,11 @@ Lattice::Lattice(LatProp l_prop, vector<PopProp> p_prop) {
                 if ((Actions[i][1] == Actions[action][1]) && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2])) {
                     container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderSwarm){
-                    if ((Actions[i][0] == Actions[action][0]) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderSwarm && (Actions[i][0] == Actions[action][0]) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
+                    container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderHGT){
-                    if (((Actions[i][0] == Actions[action][0])||(Actions[i][0] == Actions[action][0]+1)) && (Actions[i][2] == Actions[action][2])  && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderHGT && ((Actions[i][0] == Actions[action][0])||(Actions[i][0] == Actions[action][0]+1)) && (Actions[i][2] == Actions[action][2])  && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
+                    container.push_back(i);
                 }
             }
             for (int i = action + 1; (i < Actions.size()) && (Actions[i][2] < Actions[action][2] + 1); i++) {
@@ -704,15 +746,11 @@ Lattice::Lattice(LatProp l_prop, vector<PopProp> p_prop) {
                 else if ((Actions[i][1] == Actions[action][1]) && (Actions[i][0] == Actions[action][0] + 1) && (Actions[i][2] == Actions[action][2])) {
                     container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderSwarm){
-                    if (((Actions[i][0] == Actions[action][0])||(Actions[i][0] == Actions[action][0] + 1)) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderSwarm && ((Actions[i][0] == Actions[action][0])||(Actions[i][0] == Actions[action][0] + 1)) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
+                    container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderHGT){
-                    if (((Actions[i][0] == Actions[action][0])||(Actions[i][0] == Actions[action][0]+1)) && (Actions[i][2] == Actions[action][2])  && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderHGT && ((Actions[i][0] == Actions[action][0])||(Actions[i][0] == Actions[action][0]+1)) && (Actions[i][2] == Actions[action][2])  && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
+                    container.push_back(i);
                 }
             }
             break;
@@ -724,30 +762,22 @@ Lattice::Lattice(LatProp l_prop, vector<PopProp> p_prop) {
                 else if ((Actions[i][1] == Actions[action][1]) && (Actions[i][0] == Actions[action][0] - 1) && (Actions[i][2] == Actions[action][2])) {
                     container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderSwarm){
-                    if (((Actions[i][0] == Actions[action][0])||(Actions[i][0] == Actions[action][0] - 1)) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderSwarm && ((Actions[i][0] == Actions[action][0])||(Actions[i][0] == Actions[action][0] - 1)) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
+                    container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderHGT){
-                    if (((Actions[i][0] == Actions[action][0])||(Actions[i][0] == Actions[action][0]-1)) && (Actions[i][2] == Actions[action][2])  && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderHGT && ((Actions[i][0] == Actions[action][0])||(Actions[i][0] == Actions[action][0]-1)) && (Actions[i][2] == Actions[action][2])  && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
+                    container.push_back(i);
                 }
             }
             for (int i = action + 1; (i < Actions.size()) && (Actions[i][2] < Actions[action][2] + 1); i++) {
                 if ((Actions[i][1] == Actions[action][1]) && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2])) {
                     container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderSwarm){
-                    if ((Actions[i][0] == Actions[action][0]) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderSwarm && (Actions[i][0] == Actions[action][0]) && ((Actions[i][3] == 4)||(Actions[i][3] == 5))) {
+                    container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderHGT){
-                    if (((Actions[i][0] == Actions[action][0])||(Actions[i][0] == Actions[action][0]-1)) && (Actions[i][2] == Actions[action][2])  && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderHGT && ((Actions[i][0] == Actions[action][0])||(Actions[i][0] == Actions[action][0]-1)) && (Actions[i][2] == Actions[action][2])  && (Actions[i][3] == 8) && (Actions[i][4] == Actions[action][1])) {
+                    container.push_back(i);
                 }
             }
             break;
@@ -756,10 +786,11 @@ Lattice::Lattice(LatProp l_prop, vector<PopProp> p_prop) {
                 if ((Actions[i][1] == Actions[action][1]) && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2])) {
                     container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderHGT){
-                    if ((Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 8) && ((Actions[i][4] == Actions[action][1])||(Actions[i][4] == Actions[action][1]+1))) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderHGT && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 8) && ((Actions[i][4] == Actions[action][1])||(Actions[i][4] == Actions[action][1]+1))) {
+                    container.push_back(i);
+                }
+                else if ((Actions[action][1] + LProp.D <= Actions[action][2])&&(Actions[action][4] + LProp.D > Actions[action][2])&& (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 0)){
+                    container.push_back(i);
                 }
             }
             for (int i = action + 1; (i < Actions.size()) && (Actions[i][2] < Actions[action][2] + 1); i++) {
@@ -769,10 +800,11 @@ Lattice::Lattice(LatProp l_prop, vector<PopProp> p_prop) {
                 else if ((Actions[i][1] == Actions[action][4]) && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2])) {
                     container.push_back(i);
                 }
-                else if (PProp[Actions[i][0]].ConsiderHGT){
-                    if ((Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 8) && ((Actions[i][4] == Actions[action][1])||(Actions[i][4] == Actions[action][1]+1))) {
-                        container.push_back(i);
-                    }
+                else if (PProp[Actions[i][0]].ConsiderHGT && (Actions[i][0] == Actions[action][0]) && (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 8) && ((Actions[i][4] == Actions[action][1])||(Actions[i][4] == Actions[action][1]+1))) {
+                    container.push_back(i);
+                }
+                else if ((Actions[action][1] + LProp.D <= Actions[action][2])&&(Actions[action][4] + LProp.D > Actions[action][2])&& (Actions[i][2] == Actions[action][2]) && (Actions[i][3] == 0)){
+                    container.push_back(i);
                 }
             }
             break;

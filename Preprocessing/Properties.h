@@ -9,6 +9,7 @@ struct PopProp {
     int InitCellsGen = 0;
     bool AutomaticInitiation = false;
     double BirthRate = 1;
+    double CompetBelowStairs = 1; // in range [0, 1], proportion of cells below the staircase that contribute towards carrying capacity, range [0,0.5] if pop 0 is the low density phenotype
     double StressBirthRate = 0;
     double ResistCost = 0;
     double DeathRate = 1E-1;
@@ -23,6 +24,10 @@ struct PopProp {
     double Chemokin = 0;
     double SwitchUp = 0;
     double SwitchDown = 0;
+    bool ConsiderDensSwitch = false;
+    double DensSwitchBias = 0.5; // in range [0, 1], probability to switch up
+    double DensSwitchTot = 0;
+    double DensSwitchDens = 5E4;
     bool ConsiderSwarm = false;
     double SwarmDens = 5E4;
     double SwarmMove = 1;

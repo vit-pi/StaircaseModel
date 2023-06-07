@@ -92,7 +92,12 @@ void WritePreamble(Lattice &latt, ofstream &output_file){
 		output_file << "SwarmDens," << latt.PProp[population].SwarmDens << "\n";
 		output_file << "SwarmMove," << latt.PProp[population].SwarmMove << "\n";
 		output_file << "ConsiderHGT," << latt.PProp[population].ConsiderHGT << "\n";
-		output_file << "HGTRate," << latt.PProp[population].HGTRate << "\n";
+		output_file << "HGTRate," << latt.PProp[population].HGTRate << "\n"; // added 5 new parameters
+		output_file << "CompetBelowStairs," << latt.PProp[population].CompetBelowStairs << "\n";
+		output_file << "ConsiderDensSwitch," << latt.PProp[population].ConsiderDensSwitch << "\n";
+		output_file << "DensSwitchBias," << latt.PProp[population].DensSwitchBias << "\n";
+		output_file << "DensSwitchTot," << latt.PProp[population].DensSwitchTot << "\n";
+		output_file << "DensSwitchDens," << latt.PProp[population].DensSwitchDens << "\n";
 		output_file << "\n";
 	}
 }
@@ -134,9 +139,9 @@ void AdapImage(LatProp l_prop, vector<PopProp> p_prop, int adap_number,
 				file_name= "OutAdap_" + file_specifier + "_" + to_string(population) + "_"+to_string(adap_gen[0][population]) + "T.csv";
 				SaveGenSpaceTot(latt, file_name);
 				adap_gen[0][population]++;
-				if (adap_gen[0][population]-adap_gen[1][population]>1){
-					adap_gen[1][population]++;
-				}	
+				//if (adap_gen[0][population]-adap_gen[1][population]>1){
+				//	adap_gen[1][population]++;
+				//}	
 			}
 			if ((not_adapted[1]) &&(latt.GenSpaceTot[population][adap_gen[1][population]][adap_gen[1][population]+latt.LProp.D-1] > latt.GenSpaceTot[population][adap_gen[1][population]-1][adap_gen[1][population]+latt.LProp.D-1])) {
 				WaitingTime[population][adap_gen[1][population] - 1 - latt.PProp[population].InitCellsGen][1] = latt.Time;
@@ -146,6 +151,14 @@ void AdapImage(LatProp l_prop, vector<PopProp> p_prop, int adap_number,
 			}
 			if (latt.PProp[population].ConsiderSwarm){
 				if ((not_adapted[2]) && (latt.SpaceTot[population][adap_gen[2][population]]>latt.PProp[population].SwarmDens)){
+					WaitingTime[population][adap_gen[2][population] - latt.PProp[population].InitCellsPos][2] = latt.Time;
+					file_name= "OutAdap_" + file_specifier + "_" + to_string(population) + "_"+to_string(adap_gen[2][population]) + "PA.csv";
+					SaveGenSpaceTot(latt, file_name);
+					adap_gen[2][population]++;
+				}
+			}
+			if (latt.PProp[population].ConsiderDensSwitch){
+				if ((not_adapted[2]) && (latt.AbsSpaceTot[adap_gen[2][population]]>latt.PProp[population].DensSwitchDens)){
 					WaitingTime[population][adap_gen[2][population] - latt.PProp[population].InitCellsPos][2] = latt.Time;
 					file_name= "OutAdap_" + file_specifier + "_" + to_string(population) + "_"+to_string(adap_gen[2][population]) + "PA.csv";
 					SaveGenSpaceTot(latt, file_name);
