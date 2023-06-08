@@ -60,6 +60,7 @@ The instructions for the choice of parameters to reproduce the Figures of [2] ca
 | Movie2     | MSnapshotTot.cpp         | SimInterval=10; configure with values under the Movie in Supp. Text     | Movie2.py          |
 | Movie3     | MSnapshotTot.cpp         | SimInterval=10; configure with values under the Movie in Supp. Text     | Movie3.py          |
 | Movie4     | MSnapshotTot.cpp         | SimInterval=0.1; configure with values under the Movie in Supp. Text    | Movie4.py          |
+| Movie5     | MSnapshotTot.cpp         | SimInterval=0.1; configure with values under the Movie in Supp. Text    | Movie5.py          |
 
 # References:
 [1] V. Piskovsky, N. Oliveira, preprint, https://www.biorxiv.org/content/10.1101/2022.10.21.513270v1
