@@ -46,6 +46,10 @@ int main(void) {
 // List of used simulations (write ParameterValue_... for FileSpecifier, StopTime, SimInterval):
 // Notice values: 1e-3=1E3, 1e3=1Ep3 (p=positive, most exponents negative -> blank)
 
+// M10_D3E1, 1E3, 0.1 - deadly motility, original
+// M10_M1E3_S10_D3E1, 1E3, 0.1 - deadly motility, stochastic switching
+// M10_SwM1E3_SwD5Ep4_D3E1, 1E3, 0.1 - deadly motility, density-dependent
+
 // M1E3_SwM3_SwD5Ep4_S10_D3E1_SwB1E3, 1E4, 0.1 - new density switch, slow-fast
 // M1E3_SwM3_SwD5Ep4_S10_D3E1_SwB1E3, 1E4, 0.1 - new density switch, fast-slow
 // M1E3_SwM3_SwD5Ep4_D3E1, 1E4, 0.1 - old density switch, slow-fast
