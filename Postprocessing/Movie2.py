@@ -9,7 +9,7 @@ import NSnapDatabase as sd
 ###
 # prepare file
 fig_titles = ["Positive chemotaxis", "Negative chemotaxis"]
-animation_name = "Chemotaxis"
+animation_name = "Movie2"
 sim_indices = [0, 1]   # type of simulations
 version = 1    # version of simulation
 max_time = 1860

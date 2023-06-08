@@ -9,7 +9,7 @@ import NSnapDatabase as sd
 ###
 # prepare file
 fig_titles = ["Low motility", "High motility"]
-animation_name = "LowHighMotility"
+animation_name = "Movie1"
 sim_indices = [0, 1]   # type of simulations
 version = 1    # version of simulation
 max_time = 2000

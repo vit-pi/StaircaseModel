@@ -15,7 +15,7 @@ import numpy as np
 # !!!!! Also change K to K_S on y_axis
 # prepare file
 fps = 1
-animation_name = "SwarmSinkSensing"
+animation_name = "Movie4"
 file_specifiers = ["SwM3_SwD1Ep4_D1E1", "SwM3_SwD1Ep4_D3E1"]    # sink and no sink, high motility
 versions = [1, 1]    # version of simulation
 titles = ["Source-like environment", "Sink-like environment"]

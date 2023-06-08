@@ -261,7 +261,7 @@ class SnapDatabase:
         else:
             ax.set_xlabel('space x')
             ax.set_ylabel('genotype g')
-            ax.set_title('t = '+str(Time)+' h')
+            #ax.set_title('t = '+str(Time)+' h')
 
     # plots the stable wild-type plot into given axis
     # input: sim_index, ax(axes to plot to), labels(=true,false)
@@ -285,9 +285,6 @@ class SnapDatabase:
             ax.set_xticklabels(["$1$", "$R+1$", "$L$"])
         else:
             ax.set_xticks([1+k for k in range(self.l_prop.GridBound)])
-        ax.set_ylim([0, self.l_prop.CarryingCapacity])
-        if self.p_prop[0].Chemotax != 0.5: # for chemotaxis
-            ax.set_ylim([0, 7 * self.l_prop.CarryingCapacity / 2])
         ax.set_xlim([1, self.l_prop.GridBound])
         ax.set_yticks([])
 
@@ -375,7 +372,7 @@ class SnapDatabase:
             ax_twin.set_yticks([])
             # make r_net labels
             if r_labels:
-                ax_twin.set_ylabel('mutant net birth rate', color='tab:red')
+                ax_twin.set_ylabel('mutant fitness', color='tab:red')
                 ax_twin.tick_params(axis='y', labelcolor='tab:red')
                 yticks = [-self.p_prop[plot_pop].DeathRate, 0, self.p_prop[plot_pop].DeathRate]
                 ylabels = ['$-\delta$', '$0$', '$\delta$']
@@ -396,6 +393,9 @@ class SnapDatabase:
             if self.p_prop[0].Chemotax != 0.5:  # for chemotaxis
                 ax.set_yticks([0, K / 2, K, 3 * K / 2, 2 * K, 5 * K / 2, 3 * K, 7 * K / 2])
                 ax.set_yticklabels(["0", "K/2", "K", "3K/2", "2K", "5K/2", "3K", "7K/2"])
+            if self.p_prop[0].DeathRate == 0.3 and (self.p_prop[0].Move == 10 or self.p_prop[0].Move == 20-1e-3):
+                ax.set_yticks([0, K / 4, K/2])
+                ax.set_yticklabels(["0", "K/4", "K/2"])
         if x_label:
             ax.set_xlabel('space x')
         # make analytics
@@ -415,6 +415,13 @@ class SnapDatabase:
                 else:
                     ax.plot([i + 1 for i in range(self.l_prop.GridBound)], N_plot, color='black',
                             label='analytics')
+        # customize y-axis limits
+        if self.p_prop[0].Chemotax != 0.5: # for chemotaxis
+            ax.set_ylim([0, 7 * self.l_prop.CarryingCapacity / 2])
+        elif self.p_prop[0].DeathRate == 0.3 and (self.p_prop[0].Move == 10 or self.p_prop[0].Move == 20-1e-3):
+            ax.set_ylim([0, 0.5*self.l_prop.CarryingCapacity])
+        else:
+            ax.set_ylim([0, self.l_prop.CarryingCapacity])
 
     # produces an animation of staircase and wild_type plots
     # input: staircase (t/f), wildtype (t/f), max_time, fps speed (60 ususal), animation_name

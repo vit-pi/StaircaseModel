@@ -9,7 +9,7 @@ import NSnapDatabase as sd
 ###
 # prepare file
 fig_titles = ["Low switching", "High switching"]
-animation_name = "Switching"
+animation_name = "Movie3"
 sim_indices = [0, 1]   # type of simulations
 version = 1    # version of simulation
 max_time = 2090
