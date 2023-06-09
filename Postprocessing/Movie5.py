@@ -11,8 +11,8 @@ import NSnapDatabase as sd
 fig_titles = ["Original model", "Stochastic switching", "Density-dependent motility"]
 sim_indices = [0, 1, 2]   # type of simulations
 version = 1    # version of simulation
-max_time = 65
-sim_delay = 0.5
+max_time = 30
+sim_delay = 0.2
 fps = 20
 staircase = True
 wildtype = True
