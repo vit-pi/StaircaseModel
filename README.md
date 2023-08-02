@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/533790861.svg)](https://zenodo.org/badge/latestdoi/533790861)
+
 # StaircaseModel
 This project mathematically explores bacterial evolution of antibiotic resistance [1], with the aim to research the effect of bacterial motility on the evolution of antibiotic resistance [1]. This work builds on the staircase model of bacterial evolution in antibiotic gradients [2]. To understand this project it is instructive to firstly read [1]. The code consists of two parts: preprocessing (C++) and postprocessing (Python). In the preprocessing, the Next Reaction Method is used to sample the stochastic trajectories of the staircase model. The output can contain various features: snapshots of the statespace at respective times, identified first arrival times corresponding to adaptatation, etc. In postprocessing, this output can be used to create various plots, see [1] for examples. More specific explanation and a demo for each part of the code is given in the respective folders. Moreover, a detailed guidance for reproducing all figures in [1] is provided below.
 
