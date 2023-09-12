@@ -40,4 +40,4 @@ Zipped folder SnapshotBuild_LowHighMot.zip.
 # References:
 [1] M. A. Gibson and J. Bruck, The journal of physical chemistry A 104, 1876 (2000), https://pubs.acs.org/doi/10.1021/jp993732q.
 
-[2] V. Piskovsky, N. Oliveira, preprint, https://www.biorxiv.org/content/10.1101/2022.10.21.513270v1
+[2] V. Piskovsky, N. Oliveira, Nature Communications (2023), https://www.nature.com/articles/s41467-023-41196-8
