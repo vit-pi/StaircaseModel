@@ -65,7 +65,7 @@ The instructions for the choice of parameters to reproduce the Figures of [2] ca
 | Movie5     | MSnapshotTot.cpp         | SimInterval=0.1; configure with values under the Movie in Supp. Text    | Movie5.py          |
 
 # References:
-[1] V. Piskovsky, N. Oliveira, preprint, https://www.biorxiv.org/content/10.1101/2022.10.21.513270v1
+[1] V. Piskovsky, N. Oliveira, Nature Communications (2023), https://www.nature.com/articles/s41467-023-41196-8
 
 [2] R. Hermsen, J. Deris, and T. Hwa, Proceedings of the National Academy of Sciences 109, 10775 (2012), https://www.pnas.org/doi/10.1073/pnas.1117716109.
 
